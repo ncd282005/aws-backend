@@ -15,8 +15,8 @@ require("dotenv").config();
 const cron = require("node-cron");
 const { clientCrone } = require("./controllers/demo/clientCrone.controller");
 
-const privateKey = fs.readFileSync('/var/www/ssl/playground.mprompto.com/24-03-2025/private.key');
-const certificate = fs.readFileSync('/var/www/ssl/playground.mprompto.com/24-03-2025/playground.mprompto.com.chained+root.crt');
+const privateKey = fs.readFileSync('/home/ubuntu/ssl/mprompto.in/29-07-2025/mprompto.key');
+const certificate = fs.readFileSync('/home/ubuntu/ssl/mprompto.in/29-07-2025/8714e5b33009ebd6.crt');
 
 const credentials = {
   key: privateKey,
