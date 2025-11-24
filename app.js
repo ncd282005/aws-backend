@@ -1,4 +1,4 @@
-const https = require('https');
+const https = require("https");
 const fs = require('fs');
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -15,13 +15,21 @@ require("dotenv").config();
 const cron = require("node-cron");
 const { clientCrone } = require("./controllers/demo/clientCrone.controller");
 
-const privateKey = fs.readFileSync('/var/www/ssl/playground.mprompto.com/24-03-2025/private.key');
-const certificate = fs.readFileSync('/var/www/ssl/playground.mprompto.com/24-03-2025/playground.mprompto.com.chained+root.crt');
+const sslKeyPath = process.env.SSL_KEY_PATH || "/var/www/ssl/playground.mprompto.com/24-03-2025/private.key";
+const sslCertPath = process.env.SSL_CERT_PATH || "/var/www/ssl/playground.mprompto.com/24-03-2025/playground.mprompto.com.chained+root.crt";
 
-const credentials = {
-  key: privateKey,
-  cert: certificate,
-};
+let credentials = null;
+
+if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
+  credentials = {
+    key: fs.readFileSync(sslKeyPath),
+    cert: fs.readFileSync(sslCertPath),
+  };
+} else {
+  console.warn(
+    `SSL certificates not found. Expected key at ${sslKeyPath} and cert at ${sslCertPath}. Falling back to HTTP server.`
+  );
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -46,8 +54,13 @@ cron.schedule("0 * * * *", async () => {
   await clientCrone();
 });
 
-// app.listen(PORT, () => {
-//   console.log(`Server is running on port ${PORT}`);
-// });
-const httpsServer = https.createServer(credentials, app);
-httpsServer.listen(PORT);
+if (credentials) {
+  const httpsServer = https.createServer(credentials, app);
+  httpsServer.listen(PORT, () => {
+    console.log(`HTTPS server running on port ${PORT}`);
+  });
+} else {
+  app.listen(PORT, () => {
+    console.log(`HTTP server running on port ${PORT}`);
+  });
+}
