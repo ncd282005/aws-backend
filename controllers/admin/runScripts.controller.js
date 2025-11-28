@@ -1,0 +1,143 @@
+/* global process */
+const { exec } = require("child_process");
+const { promisify } = require("util");
+
+const execAsync = promisify(exec);
+
+/**
+ * Run r1.sh script with client name and categories
+ * @param {string} clientName - Client name (e.g., "gardenia")
+ * @param {string[]} categories - Array of category names
+ * @returns {Promise<{stdout: string, stderr: string}>}
+ */
+const runR1Script = async (clientName, categories) => {
+  const scriptPath = "/var/www/html/researcher1/r1.sh";
+  const categoriesString = categories.map((cat) => `"${cat}"`).join(" ");
+  const command = `./r1.sh ${clientName} ${categoriesString}`;
+  
+  // Change to the script directory before executing
+  const scriptDir = "/var/www/html/researcher1";
+  
+  return execAsync(command, {
+    cwd: scriptDir,
+    timeout: 3600000, // 1 hour timeout
+  });
+};
+
+/**
+ * Run r2.sh script with client name
+ * @param {string} clientName - Client name (e.g., "gardenia")
+ * @returns {Promise<{stdout: string, stderr: string}>}
+ */
+const runR2Script = async (clientName) => {
+  const command = `./r2/r2.sh ${clientName}`;
+  
+  // Change to the script directory before executing
+  const scriptDir = "/var/www/html/researcher1";
+  
+  return execAsync(command, {
+    cwd: scriptDir,
+    timeout: 3600000, // 1 hour timeout
+  });
+};
+
+/**
+ * Controller to run r1.sh and r2.sh scripts sequentially
+ * POST /api/v1/admin/run-scripts
+ * Body: { clientName: string, categories: string[] }
+ */
+exports.runScripts = async (req, res) => {
+  try {
+    const { clientName, categories } = req.body;
+
+    // Validate input
+    if (!clientName || typeof clientName !== "string") {
+      return res.status(400).json({
+        status: false,
+        message: "Client name is required and must be a string",
+        data: null,
+      });
+    }
+
+    if (!Array.isArray(categories) || categories.length === 0) {
+      return res.status(400).json({
+        status: false,
+        message: "Categories array is required and must contain at least one category",
+        data: null,
+      });
+    }
+
+    console.log(`Starting script execution for client: ${clientName}`);
+    console.log(`Categories: ${categories.join(", ")}`);
+
+    // Run r1.sh first
+    let r1Result;
+    try {
+      console.log("Running r1.sh...");
+      r1Result = await runR1Script(clientName, categories);
+      console.log("r1.sh completed successfully");
+      console.log("r1.sh stdout:", r1Result.stdout);
+      if (r1Result.stderr) {
+        console.log("r1.sh stderr:", r1Result.stderr);
+      }
+    } catch (error) {
+      console.error("r1.sh failed:", error);
+      return res.status(500).json({
+        status: false,
+        message: "r1.sh script execution failed",
+        error: error.message,
+        stdout: error.stdout || "",
+        stderr: error.stderr || "",
+        data: null,
+      });
+    }
+
+    // Run r2.sh after r1.sh completes successfully
+    let r2Result;
+    try {
+      console.log("Running r2.sh...");
+      r2Result = await runR2Script(clientName);
+      console.log("r2.sh completed successfully");
+      console.log("r2.sh stdout:", r2Result.stdout);
+      if (r2Result.stderr) {
+        console.log("r2.sh stderr:", r2Result.stderr);
+      }
+    } catch (error) {
+      console.error("r2.sh failed:", error);
+      return res.status(500).json({
+        status: false,
+        message: "r2.sh script execution failed",
+        error: error.message,
+        stdout: error.stdout || "",
+        stderr: error.stderr || "",
+        r1Completed: true,
+        data: null,
+      });
+    }
+
+    // Both scripts completed successfully
+    return res.status(200).json({
+      status: true,
+      message: "Both scripts executed successfully",
+      data: {
+        r1: {
+          stdout: r1Result.stdout,
+          stderr: r1Result.stderr || "",
+        },
+        r2: {
+          stdout: r2Result.stdout,
+          stderr: r2Result.stderr || "",
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Unexpected error in runScripts controller:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Unexpected error occurred while running scripts",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      data: null,
+    });
+  }
+};
+
