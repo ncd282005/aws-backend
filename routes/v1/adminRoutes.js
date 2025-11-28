@@ -3,7 +3,23 @@ const router = express.Router();
 const adminController = require("../../controllers/admin/adminlogin.controller");
 const adminDashboardController = require("../../controllers/admin/admindashboard.controller");
 const adminLogoutController = require("../../controllers/admin/adminlogout.controller");
-const { uploadCsv, uploadJsonConfig } = require("../../controllers/admin/uploadCsv.controller");
+const {
+  uploadCsv,
+  uploadJsonConfig,
+} = require("../../controllers/admin/uploadCsv.controller");
+const {
+  getSyncErrors,
+} = require("../../controllers/admin/syncStatus.controller");
+const {
+  getPipelineStatus,
+} = require("../../controllers/admin/pipelineStatus.controller");
+const {
+  getProcessedCategorySummary,
+  getProcessedCategoryDetails,
+} = require("../../controllers/admin/processedProducts.controller");
+const {
+  runScripts,
+} = require("../../controllers/admin/runScripts.controller");
 
 const { authenticateToken } = require("../../middleware/authenticate");
 const uploadCsvMulter = require("../../utils/multerCsvConfig");
@@ -28,5 +44,11 @@ router.post(
   "/upload-json-config",
   uploadJsonConfig
 );
+
+router.get("/sync-errors", getSyncErrors);
+router.get("/pipeline-status", getPipelineStatus);
+router.get("/processed-products", getProcessedCategorySummary);
+router.post("/processed-products/details", getProcessedCategoryDetails);
+router.post("/run-scripts", runScripts);
 
 module.exports = router;

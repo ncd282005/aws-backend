@@ -51,7 +51,7 @@ exports.uploadCsv = async (req, res) => {
 
     // Build S3 key based on requested folder structure
     const uploadDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    const clientName = "mprompto";
+    const clientName = "testnew2";
     const randomSuffix = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
     const versionLabel = `v${randomSuffix}`;
     const fileNameInBucket = `product_${versionLabel}.csv`;
@@ -74,7 +74,7 @@ exports.uploadCsv = async (req, res) => {
     }
 
     const uploadParams = {
-      Bucket: S3_BUCKET_NAME,
+      Bucket: "testdevopsetl",
       Key: s3Key,
       Body: fileBody,
       ContentType: req.file.mimetype || "text/csv",
@@ -88,7 +88,7 @@ exports.uploadCsv = async (req, res) => {
     await s3Client.send(command);
 
     // Construct S3 URL
-    const s3Url = `https://${S3_BUCKET_NAME}.s3.${process.env.AWS_REGION || "us-east-1"}.amazonaws.com/${s3Key}`;
+    const s3Url = `https://testdevopsetl.s3.${process.env.AWS_REGION || "us-east-1"}.amazonaws.com/${s3Key}`;
 
     // Clean up local file if it exists (multer disk storage)
     if (req.file.path) {
@@ -196,7 +196,7 @@ exports.uploadJsonConfig = async (req, res) => {
     }
 
     // Build S3 key based on requested folder structure
-    const clientName = "mprompto";
+    const clientName = "testnew2";
     const s3Key = `config/client_name=${clientName}/upload_date=${uploadDate}/${fileName}`;
 
     // Convert JSON config to string

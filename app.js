@@ -1,4 +1,4 @@
-const https = require("https");
+const https = require('https');
 const fs = require('fs');
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -9,27 +9,20 @@ const connectDB = require("./config/db");
 const userRoutes = require("./routes/v1/userRoutes");
 const demoRoutes = require("./routes/v1/demoRoutes");
 const adminRoutes = require("./routes/v1/adminRoutes")
+const analyticsRoutes = require("./routes/v1/analyticsRoutes");
 const trackLogRoutes = require("./routes/v1/trackLogRoutes");
 require("dotenv").config();
 
 const cron = require("node-cron");
 const { clientCrone } = require("./controllers/demo/clientCrone.controller");
 
-const sslKeyPath = process.env.SSL_KEY_PATH || "/var/www/ssl/playground.mprompto.com/24-03-2025/private.key";
-const sslCertPath = process.env.SSL_CERT_PATH || "/var/www/ssl/playground.mprompto.com/24-03-2025/playground.mprompto.com.chained+root.crt";
+const privateKey = fs.readFileSync('/home/ubuntu/ssl/mprompto.in/29-07-2025/mprompto.key');
+const certificate = fs.readFileSync('/home/ubuntu/ssl/mprompto.in/29-07-2025/8714e5b33009ebd6.crt');
 
-let credentials = null;
-
-if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
-  credentials = {
-    key: fs.readFileSync(sslKeyPath),
-    cert: fs.readFileSync(sslCertPath),
-  };
-} else {
-  console.warn(
-    `SSL certificates not found. Expected key at ${sslKeyPath} and cert at ${sslCertPath}. Falling back to HTTP server.`
-  );
-}
+const credentials = {
+  key: privateKey,
+  cert: certificate,
+};
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,6 +40,7 @@ connectDB();
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/demo", demoRoutes);
 app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/track", trackLogRoutes);
 
 
@@ -54,13 +48,8 @@ cron.schedule("0 * * * *", async () => {
   await clientCrone();
 });
 
-if (credentials) {
-  const httpsServer = https.createServer(credentials, app);
-  httpsServer.listen(PORT, () => {
-    console.log(`HTTPS server running on port ${PORT}`);
-  });
-} else {
-  app.listen(PORT, () => {
-    console.log(`HTTP server running on port ${PORT}`);
-  });
-}
+// app.listen(PORT, () => {
+//   console.log(`Server is running on port ${PORT}`);
+// });
+const httpsServer = https.createServer(credentials, app);
+httpsServer.listen(PORT);
