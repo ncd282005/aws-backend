@@ -51,7 +51,7 @@ exports.uploadCsv = async (req, res) => {
 
     // Build S3 key based on requested folder structure
     const uploadDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    const clientName = "testnew2";
+    const clientName = "gardenia";
     const randomSuffix = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
     const versionLabel = `v${randomSuffix}`;
     const fileNameInBucket = `product_${versionLabel}.csv`;
@@ -196,7 +196,7 @@ exports.uploadJsonConfig = async (req, res) => {
     }
 
     // Build S3 key based on requested folder structure
-    const clientName = "testnew2";
+    const clientName = "gardenia";
     const s3Key = `config/client_name=${clientName}/upload_date=${uploadDate}/${fileName}`;
 
     // Convert JSON config to string

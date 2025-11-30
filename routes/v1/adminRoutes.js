@@ -22,6 +22,9 @@ const {
 const {
   runScripts,
 } = require("../../controllers/admin/runScripts.controller");
+const {
+  getGardeniaProducts,
+} = require("../../controllers/admin/gardeniaProducts.controller");
 
 const { authenticateToken } = require("../../middleware/authenticate");
 const uploadCsvMulter = require("../../utils/multerCsvConfig");
@@ -54,5 +57,6 @@ router.get("/pipeline-status", getPipelineStatus);
 router.get("/processed-products", getProcessedCategorySummary);
 router.post("/processed-products/details", getProcessedCategoryDetails);
 router.post("/run-scripts", runScripts);
+router.get("/gardenia-products", getGardeniaProducts);
 
 module.exports = router;
