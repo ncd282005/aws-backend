@@ -32,7 +32,7 @@ const listCategoryProductKeys = async (clientName) => {
   const results = [];
   let continuationToken = undefined;
 
-  const normalizedClient = sanitizePathSegment(clientName || "gardenia");
+  const normalizedClient = sanitizePathSegment(clientName || "test_sunglasses");
   const basePrefix = sanitizePathSegment(PROCESSED_PRODUCTS_BASE_PREFIX);
   const prefix = `${basePrefix}/${normalizedClient}/hierarchy/`;
 
@@ -120,7 +120,7 @@ const parseCategoryProducts = (csvString) => {
 
 exports.getProcessedCategorySummary = async (req, res) => {
   try {
-    const clientName = req.query.clientName || "gardenia";
+    const clientName = req.query.clientName || "test_sunglasses";
     const categoryObjects = await listCategoryProductKeys(clientName);
 
     if (categoryObjects.length === 0) {
@@ -159,7 +159,7 @@ exports.getProcessedCategorySummary = async (req, res) => {
 
 exports.getProcessedCategoryDetails = async (req, res) => {
   try {
-    const clientName = req.body?.clientName || "gardenia";
+    const clientName = req.body?.clientName || "test_sunglasses";
     const categories = Array.isArray(req.body?.categories)
       ? req.body.categories
       : [];

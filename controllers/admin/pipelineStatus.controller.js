@@ -4,7 +4,7 @@ const PipelineStatus = require("../../models/pipelineStatus.schema");
 const normalizeStatus = (status = "") => status.toLowerCase();
 
 exports.getPipelineStatus = async (req, res) => {
-  const clientName = req.query.clientName || "gardenia";
+  const clientName = req.query.clientName || "test_sunglasses";
 
   try {
     const latestStatus = await PipelineStatus.findOne({
