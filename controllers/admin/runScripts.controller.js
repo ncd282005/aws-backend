@@ -30,10 +30,10 @@ const runR1Script = async (clientName, categories) => {
  * @returns {Promise<{stdout: string, stderr: string}>}
  */
 const runR2Script = async (clientName) => {
-  const command = `bash ./r2/r2.sh ${clientName}`;
+  const command = `bash ./r2.sh ${clientName}`;
   
   // Change to the script directory before executing
-  const scriptDir = "/var/www/html/researcher1";
+  const scriptDir = "/var/www/html/researcher1/r2";
   
   return execAsync(command, {
     cwd: scriptDir,

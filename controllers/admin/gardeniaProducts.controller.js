@@ -98,7 +98,7 @@ exports.getGardeniaProducts = async (req, res) => {
                 id: product.product_id,
                 product: product.product_id,
                 category: product.category,
-                processing: "PROCESSING", // Default status
+                processing: "PROCESSED", // Default status
                 ecommerce: "ACTIVE", // Default status
                 // Include full product data for factsheet
                 attributes: product.attributes || {},
