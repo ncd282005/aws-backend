@@ -13,7 +13,7 @@ const execAsync = promisify(exec);
 const runR1Script = async (clientName, categories) => {
   const scriptPath = "/var/www/html/researcher1/r1.sh";
   const categoriesString = categories.map((cat) => `"${cat}"`).join(" ");
-  const command = `./r1.sh ${clientName} ${categoriesString}`;
+  const command = `bash ./r1.sh ${clientName} ${categoriesString}`;
   
   // Change to the script directory before executing
   const scriptDir = "/var/www/html/researcher1";
@@ -30,7 +30,7 @@ const runR1Script = async (clientName, categories) => {
  * @returns {Promise<{stdout: string, stderr: string}>}
  */
 const runR2Script = async (clientName) => {
-  const command = `./r2/r2.sh ${clientName}`;
+  const command = `bash ./r2/r2.sh ${clientName}`;
   
   // Change to the script directory before executing
   const scriptDir = "/var/www/html/researcher1";
