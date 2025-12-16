@@ -10,21 +10,26 @@ const VECTOR_UPSERT_DIR = '/var/www/html/vector_upsert';
 
 /**
  * Generate allowed_list.jsonl file
- * @param {Array} activeProductIds - Array of product IDs to include
+ * @param {Array} products - Array of product objects with {product_id, category, action}
  * @returns {Promise<string>} Path to the created file
  */
-const generateAllowedListJsonl = async (activeProductIds) => {
+const generateAllowedListJsonl = async (products) => {
   const filePath = path.join(VECTOR_UPSERT_DIR, 'allowed_list.jsonl');
   
   // Create JSONL content (one JSON object per line)
-  const jsonlContent = activeProductIds
-    .map(productId => JSON.stringify({ product_id: productId }))
+  // Format: {"product_id": "P123", "category": "Fragrance", "action": "activate"}
+  const jsonlContent = products
+    .map(product => JSON.stringify({
+      product_id: product.product_id,
+      category: product.category,
+      action: product.action
+    }))
     .join('\n');
   
   // Write file
   await fs.writeFile(filePath, jsonlContent, 'utf8');
   
-  console.log(`Created allowed_list.jsonl with ${activeProductIds.length} products`);
+  console.log(`Created allowed_list.jsonl with ${products.length} products`);
   return filePath;
 };
 

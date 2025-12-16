@@ -68,10 +68,19 @@ exports.toggleProductStatus = async (req, res) => {
     console.log(`Toggling product ${productId} to ${status} for category ${category}`);
     console.log(`Active products count: ${activeProductIds.length}`);
 
+    // Prepare products array for JSONL file
+    // Each product should have: product_id, category, action
+    // The allowed_list.jsonl contains all products that should be active, so action is always "activate"
+    const productsForJsonl = activeProductIds.map(pid => ({
+      product_id: pid,
+      category: category,
+      action: "activate"
+    }));
+
     // Step 1: Generate allowed_list.jsonl
     let allowedListPath;
     try {
-      allowedListPath = await generateAllowedListJsonl(activeProductIds);
+      allowedListPath = await generateAllowedListJsonl(productsForJsonl);
       console.log(`Generated allowed_list.jsonl at: ${allowedListPath}`);
     } catch (error) {
       console.error('Failed to generate allowed_list.jsonl:', error);
