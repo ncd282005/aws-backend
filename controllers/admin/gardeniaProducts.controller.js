@@ -27,7 +27,7 @@ const streamToString = async (stream) => {
 exports.getGardeniaProducts = async (req, res) => {
   try {
     const BUCKET_NAME = "researcher2";
-    const PREFIX = "test_sunglasses/";
+    const PREFIX = "test_sunglasses_new/";
     
     // List all JSONL files in the gardenia folder
     const jsonlFiles = [];
