@@ -25,6 +25,9 @@ const {
 const {
   getGardeniaProducts,
 } = require("../../controllers/admin/gardeniaProducts.controller");
+const {
+  toggleProductStatus,
+} = require("../../controllers/admin/toggleProductStatus.controller");
 
 const { authenticateToken } = require("../../middleware/authenticate");
 const uploadCsvMulter = require("../../utils/multerCsvConfig");
@@ -58,5 +61,6 @@ router.get("/processed-products", getProcessedCategorySummary);
 router.post("/processed-products/details", getProcessedCategoryDetails);
 router.post("/run-scripts", runScripts);
 router.get("/gardenia-products", getGardeniaProducts);
+router.post("/toggle-product-status", toggleProductStatus);
 
 module.exports = router;
