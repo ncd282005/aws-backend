@@ -74,7 +74,7 @@ exports.toggleProductStatus = async (req, res) => {
     const productsForJsonl = activeProductIds.map(pid => ({
       product_id: pid,
       category: category,
-      action: "activate"
+      action: "deactivate"
     }));
 
     // Step 1: Generate allowed_list.jsonl
