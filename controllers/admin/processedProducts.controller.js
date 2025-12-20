@@ -72,7 +72,7 @@ const listCategoryProductKeys = async (clientName) => {
         segments[segments.length - 4].toLowerCase();
 
       if (
-        fileName.toLowerCase() === "Sunglasses.csv" &&
+        fileName.toLowerCase() === "sunglasses.csv" &&
         hierarchySegment === "categories" &&
         clientSegment === normalizedClient.toLowerCase()
       ) {
