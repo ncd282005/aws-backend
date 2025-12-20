@@ -3,7 +3,6 @@ const { GetObjectCommand } = require("@aws-sdk/client-s3");
 const {
   s3Client,
   ERROR_LOG_BUCKET_NAME,
-  ERROR_LOG_OBJECT_KEY,
   S3_BUCKET_REGION,
 } = require("../../config/s3Config");
 
@@ -27,11 +26,19 @@ const streamToString = async (stream) => {
   });
 };
 
-exports.getSyncErrors = async (_req, res) => {
+exports.getSyncErrors = async (req, res) => {
   try {
+    const clientName = req.query.clientName;
+    if (!clientName || clientName.trim() === "") {
+      return res.status(400).json({
+        status: false,
+        message: "clientName is required in query parameters.",
+        data: null,
+      });
+    }
     const command = new GetObjectCommand({
       Bucket: ERROR_LOG_BUCKET_NAME,
-      Key: ERROR_LOG_OBJECT_KEY,
+      Key: `processeddata/${clientName}/logs/error.json`,
     });
 
     const objectResponse = await s3Client.send(command);
@@ -45,10 +52,10 @@ exports.getSyncErrors = async (_req, res) => {
       data: parsed,
       source: {
         bucket: ERROR_LOG_BUCKET_NAME,
-        key: ERROR_LOG_OBJECT_KEY,
+        key: `processeddata/${clientName}/logs/error.json`,
         url: buildPublicS3Url(
           ERROR_LOG_BUCKET_NAME,
-          ERROR_LOG_OBJECT_KEY,
+          `processeddata/${clientName}/logs/error.json`,
           S3_BUCKET_REGION
         ),
         lastModified: objectResponse?.LastModified,

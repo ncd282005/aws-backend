@@ -11,6 +11,16 @@ const CsvUploadRecord = require("../../models/csvUploadRecord.schema");
  */
 exports.uploadCsv = async (req, res) => {
   try {
+    // Validate clientName from query parameters
+    const clientName = req.query.clientName;
+    if (!clientName || clientName.trim() === "") {
+      return res.status(400).json({
+        status: false,
+        message: "clientName is required in query parameters.",
+        data: null,
+      });
+    }
+
     // Check if file exists
     if (!req.file) {
       return res.status(400).json({
@@ -51,7 +61,6 @@ exports.uploadCsv = async (req, res) => {
 
     // Build S3 key based on requested folder structure
     const uploadDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    const clientName = "test_sunglasses";
     const randomSuffix = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
     const versionLabel = `v${randomSuffix}`;
     const fileNameInBucket = `product_${versionLabel}.csv`;
@@ -175,6 +184,14 @@ exports.uploadCsv = async (req, res) => {
  */
 exports.uploadJsonConfig = async (req, res) => {
   try {
+    const clientName = req.query.clientName;
+    if (!clientName || clientName.trim() === "") {
+      return res.status(400).json({
+        status: false,
+        message: "clientName is required in query parameters.",
+        data: null,
+      });
+    }
     const { jsonConfig, fileName, uploadDate } = req.body;
 
     // Validate required fields
@@ -196,7 +213,6 @@ exports.uploadJsonConfig = async (req, res) => {
     }
 
     // Build S3 key based on requested folder structure
-    const clientName = "test_sunglasses";
     const s3Key = `config/client_name=${clientName}/upload_date=${uploadDate}/${fileName}`;
 
     // Convert JSON config to string

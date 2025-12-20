@@ -27,7 +27,15 @@ const streamToString = async (stream) => {
 exports.getGardeniaProducts = async (req, res) => {
   try {
     const BUCKET_NAME = "researcher2";
-    const PREFIX = "test_sunglasses/";
+    const clientName = req.query.clientName;
+    if (!clientName || clientName.trim() === "") {
+      return res.status(400).json({
+        status: false,
+        message: "clientName is required in query parameters.",
+        data: null,
+      });
+    }
+    const PREFIX = `${clientName}/`;
     
     // List all JSONL files in the gardenia folder
     const jsonlFiles = [];
