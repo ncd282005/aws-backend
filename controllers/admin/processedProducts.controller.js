@@ -188,7 +188,8 @@ exports.getProcessedCategoryDetails = async (req, res) => {
 
     for (const category of categories) {
       const normalizedCategory = sanitizePathSegment(category);
-      const key = `${basePrefix}/${normalizedClient}/categories/${normalizedCategory}/products.csv`;
+      const key = `${basePrefix}/${normalizedClient}/categories/${normalizedCategory}/Sunglasses.csv`;
+      console.log("key", key);
 
       try {
         const command = new GetObjectCommand({
