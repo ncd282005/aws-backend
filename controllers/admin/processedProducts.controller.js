@@ -36,6 +36,10 @@ const listCategoryProductKeys = async (clientName) => {
   const basePrefix = sanitizePathSegment(PROCESSED_PRODUCTS_BASE_PREFIX);
   const prefix = `${basePrefix}/${normalizedClient}/hierarchy/`;
 
+  console.log("prefix", prefix);
+  console.log("normalizedClient", normalizedClient);
+  console.log("basePrefix", basePrefix);
+
   do {
     const command = new ListObjectsV2Command({
       Bucket: PROCESSED_PRODUCTS_BUCKET_NAME,
@@ -47,6 +51,8 @@ const listCategoryProductKeys = async (clientName) => {
     continuationToken = response.IsTruncated
       ? response.NextContinuationToken
       : undefined;
+
+    console.log("response", response);
 
     (response.Contents || []).forEach((object) => {
       if (!object?.Key) return;
@@ -121,7 +127,9 @@ const parseCategoryProducts = (csvString) => {
 exports.getProcessedCategorySummary = async (req, res) => {
   try {
     const clientName = req.query.clientName || "test_sunglasses";
+    console.log("clientName", clientName);
     const categoryObjects = await listCategoryProductKeys(clientName);
+    console.log("categoryObjects", categoryObjects);
 
     if (categoryObjects.length === 0) {
       return res.status(404).json({
