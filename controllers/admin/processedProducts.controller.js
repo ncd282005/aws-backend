@@ -34,7 +34,7 @@ const listCategoryProductKeys = async (clientName) => {
 
   const normalizedClient = sanitizePathSegment(clientName || "test_sunglasses");
   const basePrefix = sanitizePathSegment(PROCESSED_PRODUCTS_BASE_PREFIX);
-  const prefix = `${basePrefix}/${normalizedClient}/hierarchy/`;
+  const prefix = `${basePrefix}/${normalizedClient}/categories/`;
 
   console.log("prefix", prefix);
   console.log("normalizedClient", normalizedClient);
@@ -187,7 +187,7 @@ exports.getProcessedCategoryDetails = async (req, res) => {
 
     for (const category of categories) {
       const normalizedCategory = sanitizePathSegment(category);
-      const key = `${basePrefix}/${normalizedClient}/hierarchy/${normalizedCategory}/products.csv`;
+      const key = `${basePrefix}/${normalizedClient}/categories/${normalizedCategory}/products.csv`;
 
       try {
         const command = new GetObjectCommand({
