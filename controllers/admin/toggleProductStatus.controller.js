@@ -26,10 +26,10 @@ exports.toggleProductStatus = async (req, res) => {
   try {
     const { 
       productId, 
-      status, 
+      status,
       category, 
       activeProductIds,
-      categoryConfig 
+      categoryConfig
     } = req.body;
 
     // Validate input
@@ -74,7 +74,7 @@ exports.toggleProductStatus = async (req, res) => {
     const productsForJsonl = activeProductIds.map(pid => ({
       product_id: pid,
       category: category,
-      action: "deactivate"
+      action: status === "ACTIVE" ? "activate" : "deactivate"
     }));
 
     // Step 1: Generate allowed_list.jsonl
