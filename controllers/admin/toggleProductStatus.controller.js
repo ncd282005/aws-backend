@@ -93,7 +93,6 @@ exports.toggleProductStatus = async (req, res) => {
     }
 
     // Step 2: Generate orchestrator_config.json
-    // Normalize category name (e.g., "sunglasses" or "Sunglasses" -> "sunglasses")
     const normalizedCategory = category.toLowerCase().replace(/\s+/g, '_');
     
     const orchestratorConfig = {
