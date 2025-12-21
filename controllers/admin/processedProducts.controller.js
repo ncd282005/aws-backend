@@ -32,7 +32,7 @@ const listCategoryProductKeys = async (clientName) => {
   const results = [];
   let continuationToken = undefined;
 
-  const normalizedClient = sanitizePathSegment(clientName || "test_sunglasses");
+  const normalizedClient = sanitizePathSegment(clientName);
   const basePrefix = sanitizePathSegment(PROCESSED_PRODUCTS_BASE_PREFIX);
   const prefix = `${basePrefix}/${normalizedClient}/categories/`;
 
@@ -62,19 +62,17 @@ const listCategoryProductKeys = async (clientName) => {
       }
       console.log("segments", segments);
 
-      const fileName = segments[segments.length - 1];
       const category = segments[segments.length - 2];
-      const hierarchySegment =
+      const categoriesSegment =
         segments[segments.length - 3] &&
         segments[segments.length - 3].toLowerCase();
-      const clientSegment =
+      const clientNameSegment =
         segments[segments.length - 4] &&
         segments[segments.length - 4].toLowerCase();
 
       if (
-        fileName.toLowerCase() === "sunglasses.csv" &&
-        hierarchySegment === "categories" &&
-        clientSegment === normalizedClient.toLowerCase()
+        categoriesSegment === "categories" &&
+        clientNameSegment === normalizedClient.toLowerCase()
       ) {
         results.push({
           category,
@@ -127,7 +125,7 @@ const parseCategoryProducts = (csvString) => {
 
 exports.getProcessedCategorySummary = async (req, res) => {
   try {
-    const clientName = req.query.clientName || "test_sunglasses";
+    const clientName = req.query.clientName;
     console.log("clientName", clientName);
     const categoryObjects = await listCategoryProductKeys(clientName);
     console.log("categoryObjects", categoryObjects);
@@ -168,7 +166,7 @@ exports.getProcessedCategorySummary = async (req, res) => {
 
 exports.getProcessedCategoryDetails = async (req, res) => {
   try {
-    const clientName = req.body?.clientName || "test_sunglasses";
+    const clientName = req.body?.clientName;
     const categories = Array.isArray(req.body?.categories)
       ? req.body.categories
       : [];
@@ -188,7 +186,7 @@ exports.getProcessedCategoryDetails = async (req, res) => {
 
     for (const category of categories) {
       const normalizedCategory = sanitizePathSegment(category);
-      const key = `${basePrefix}/${normalizedClient}/categories/${normalizedCategory}/Sunglasses.csv`;
+      const key = `${basePrefix}/${normalizedClient}/categories/${normalizedCategory}/${normalizedCategory}.csv`;
       console.log("key", key);
 
       try {
