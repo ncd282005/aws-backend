@@ -5,10 +5,7 @@ exports.store = async (req, res) => {
     const product = new WebhookProduct(req.body); // 👈 store exactly as sent
     await product.save();
 
-    return res.status(201).json({
-      success: true,
-      data: product,
-    });
+    res.status(200).send("OK");
   } catch (err) {
     console.error("Error storing shopify webhook log:", err);
     return res.status(500).json({
