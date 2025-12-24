@@ -238,3 +238,73 @@ exports.runNudgeQuality = async (req, res) => {
   }
 };
 
+/**
+ * Get questionnaire data from the generated JSON file
+ * GET /api/v1/admin/nudge-quality/questionnaire
+ * Query: { clientName: string, category: string }
+ */
+exports.getQuestionnaire = async (req, res) => {
+  try {
+    const { clientName, category } = req.query;
+
+    // Validate input
+    if (!clientName || typeof clientName !== "string") {
+      return res.status(400).json({
+        status: false,
+        message: "Client name is required and must be a string",
+        data: null,
+      });
+    }
+
+    if (!category || typeof category !== "string") {
+      return res.status(400).json({
+        status: false,
+        message: "Category is required and must be a string",
+        data: null,
+      });
+    }
+
+    // The questionnaire.json file is generated at /var/www/html/qgen/output/questionnaire.json
+    const questionnairePath = "/var/www/html/qgen/output/questionnaire.json";
+
+    console.log(`Reading questionnaire from: ${questionnairePath}`);
+
+    // Check if file exists
+    if (!fs.existsSync(questionnairePath)) {
+      return res.status(404).json({
+        status: false,
+        message: "Questionnaire file not found. Please run the nudge quality script first.",
+        data: null,
+      });
+    }
+
+    // Read and parse the JSON file
+    try {
+      const fileContent = fs.readFileSync(questionnairePath, 'utf8');
+      const questionnaireData = JSON.parse(fileContent);
+
+      return res.status(200).json({
+        status: true,
+        message: "Questionnaire data retrieved successfully",
+        data: questionnaireData,
+      });
+    } catch (parseError) {
+      console.error("Error parsing questionnaire JSON:", parseError);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to parse questionnaire file",
+        error: parseError.message,
+        data: null,
+      });
+    }
+  } catch (error) {
+    console.error("Unexpected error in getQuestionnaire controller:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Unexpected error occurred while reading questionnaire",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      data: null,
+    });
+  }
+};
+
