@@ -1,6 +1,6 @@
-const WebhookProduct = require("../../models/webhook/product.schema");
+const WebhookProduct = require("../../models/webhook/webhookProduct.schema");
 
-exports.store = async (req, res) => {
+exports.productStore = async (req, res) => {
   try {
     const product = new WebhookProduct(req.body); // 👈 store exactly as sent
     await product.save();

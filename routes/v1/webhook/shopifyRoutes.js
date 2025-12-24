@@ -1,12 +1,18 @@
 const express = require("express");
 const router = express.Router();
 
-const shopifyController = require("../../../controllers/webhook/shopify.controller");
+const shopifyProductStore = require("../../../controllers/webhook/shopifyProductStore.controller");
+const shopifyProductUpdate = require("../../../controllers/webhook/shopifyProductUpdate.controller");
 
 router.post(
-  "/store",
+  "/product/store",
   express.raw({ type: "application/json" }),
-  shopifyController.store
+  shopifyProductStore.productStore
 );
 
+router.post(
+  "/product/update",
+  express.raw({ type: "application/json" }),
+  shopifyProductUpdate.productUpdate
+);
 module.exports = router;
