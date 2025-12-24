@@ -18,7 +18,7 @@ const cron = require("node-cron");
 const { clientCrone } = require("./controllers/demo/clientCrone.controller");
 
 const privateKey = fs.readFileSync('/home/ubuntu/ssl/mprompto.in/29-07-2025/mprompto.key');
-const certificate = fs.readFileSync('/home/ubuntu/ssl/mprompto.in/29-07-2025/8714e5b33009ebd6.crt');
+const certificate = fs.readFileSync('/home/ubuntu/ssl/mprompto.in/29-07-2025/fullchain.crt');
 
 const credentials = {
   key: privateKey,
