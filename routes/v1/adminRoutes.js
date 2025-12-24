@@ -32,6 +32,9 @@ const {
   getAllClients,
   createClient,
 } = require("../../controllers/admin/client.controller");
+const {
+  runNudgeQuality,
+} = require("../../controllers/admin/nudgeQuality.controller");
 
 const { authenticateToken } = require("../../middleware/authenticate");
 const uploadCsvMulter = require("../../utils/multerCsvConfig");
@@ -66,6 +69,7 @@ router.post("/processed-products/details", getProcessedCategoryDetails);
 router.post("/run-scripts", runScripts);
 router.get("/gardenia-products", getGardeniaProducts);
 router.post("/toggle-product-status", toggleProductStatus);
+router.post("/nudge-quality", runNudgeQuality);
 
 // Client management routes (no authentication required for now)
 router.get("/clients", getAllClients);
