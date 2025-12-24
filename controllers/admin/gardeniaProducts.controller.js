@@ -53,6 +53,8 @@ exports.getGardeniaProducts = async (req, res) => {
         ? listResponse.NextContinuationToken
         : undefined;
 
+        console.log("listResponse.Contents", listResponse.Contents);
+
       (listResponse.Contents || []).forEach((object) => {
         if (object?.Key && object.Key.endsWith(".jsonl")) {
           jsonlFiles.push({
@@ -67,8 +69,6 @@ exports.getGardeniaProducts = async (req, res) => {
     } while (continuationToken);
 
     console.log("jsonlFiles", jsonlFiles);
-
-    console.log("listResponse.Contents", listResponse.Contents);
 
     if (jsonlFiles.length === 0) {
       return res.status(404).json({
