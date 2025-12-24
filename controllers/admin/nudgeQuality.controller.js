@@ -12,8 +12,11 @@ const execAsync = promisify(exec);
  */
 const runNudgeQualityScript = async (clientName, category) => {
   // Normalize category name for S3 path (replace spaces with underscores, lowercase)
+  const normalizedCategory = category.replace(/\s+/g, "_");
+
+  console.log("normalizedCategory", normalizedCategory);
   
-  const s3InputPath = `s3://researcher2/${clientName}/${category}.jsonl`;
+  const s3InputPath = `s3://researcher2/${clientName}/${normalizedCategory}.jsonl`;
   const outputPath = `/var/www/html/qgen/output/questionnaire.json`;
   
   // Change to the script directory before executing (following the pattern from runScripts.controller.js)
