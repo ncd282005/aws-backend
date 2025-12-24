@@ -34,6 +34,7 @@ const {
 } = require("../../controllers/admin/client.controller");
 const {
   runNudgeQuality,
+  getQuestionnaire,
 } = require("../../controllers/admin/nudgeQuality.controller");
 
 const { authenticateToken } = require("../../middleware/authenticate");
@@ -70,6 +71,7 @@ router.post("/run-scripts", runScripts);
 router.get("/gardenia-products", getGardeniaProducts);
 router.post("/toggle-product-status", toggleProductStatus);
 router.post("/nudge-quality", runNudgeQuality);
+router.get("/nudge-quality/questionnaire", getQuestionnaire);
 
 // Client management routes (no authentication required for now)
 router.get("/clients", getAllClients);
