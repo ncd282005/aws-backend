@@ -28,6 +28,10 @@ const {
 const {
   toggleProductStatus,
 } = require("../../controllers/admin/toggleProductStatus.controller");
+const {
+  getAllClients,
+  createClient,
+} = require("../../controllers/admin/client.controller");
 
 const { authenticateToken } = require("../../middleware/authenticate");
 const uploadCsvMulter = require("../../utils/multerCsvConfig");
@@ -62,5 +66,9 @@ router.post("/processed-products/details", getProcessedCategoryDetails);
 router.post("/run-scripts", runScripts);
 router.get("/gardenia-products", getGardeniaProducts);
 router.post("/toggle-product-status", toggleProductStatus);
+
+// Client management routes (no authentication required for now)
+router.get("/clients", getAllClients);
+router.post("/clients", createClient);
 
 module.exports = router;
