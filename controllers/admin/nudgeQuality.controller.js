@@ -1,6 +1,8 @@
 /* global process */
 const { exec } = require("child_process");
 const { promisify } = require("util");
+const { HeadObjectCommand } = require("@aws-sdk/client-s3");
+const { s3Client } = require("../../config/s3Config");
 
 const execAsync = promisify(exec);
 
@@ -10,14 +12,53 @@ const execAsync = promisify(exec);
  * @param {string} category - Category name
  * @returns {Promise<{stdout: string, stderr: string}>}
  */
+/**
+ * Verify S3 file exists before running script
+ * @param {string} clientName - Client name
+ * @param {string} normalizedCategory - Normalized category name
+ * @returns {Promise<boolean>}
+ */
+const verifyS3FileExists = async (clientName, normalizedCategory) => {
+  try {
+    // Extract bucket and key from S3 path
+    const bucket = "researcher2";
+    const key = `${clientName}/${normalizedCategory}.jsonl`;
+    
+    console.log(`Verifying S3 file exists: s3://${bucket}/${key}`);
+    
+    const command = new HeadObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    });
+    
+    await s3Client.send(command);
+    console.log(`S3 file verified: s3://${bucket}/${key}`);
+    return true;
+  } catch (error) {
+    if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
+      console.error(`S3 file not found: s3://researcher2/${clientName}/${normalizedCategory}.jsonl`);
+      return false;
+    }
+    console.error(`Error verifying S3 file:`, error);
+    // If we can't verify, still try to run the script (maybe it's a permissions issue)
+    return true;
+  }
+};
+
 const runNudgeQualityScript = async (clientName, category) => {
-  // Normalize category name for S3 path (replace spaces with underscores, lowercase)
+  // Normalize category name for S3 path (replace spaces with underscores)
   const normalizedCategory = category.replace(/\s+/g, "_");
 
   console.log("normalizedCategory", normalizedCategory);
   
   const s3InputPath = `s3://researcher2/${clientName}/${normalizedCategory}.jsonl`;
   const outputPath = `/var/www/html/qgen/output/questionnaire.json`;
+  
+  // Verify S3 file exists before running script
+  const fileExists = await verifyS3FileExists(clientName, normalizedCategory);
+  if (!fileExists) {
+    throw new Error(`S3 file does not exist: ${s3InputPath}. Please verify the file path and ensure the file has been uploaded.`);
+  }
   
   // Change to the script directory before executing (following the pattern from runScripts.controller.js)
   const scriptDir = "/var/www/html/qgen";
@@ -28,6 +69,13 @@ const runNudgeQualityScript = async (clientName, category) => {
   return execAsync(command, {
     cwd: scriptDir,
     timeout: 3600000, // 1 hour timeout
+    env: {
+      ...process.env,
+      // Ensure AWS credentials are available to the script
+      AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+      AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+      AWS_REGION: process.env.AWS_REGION || "ap-south-1",
+    },
   });
 };
 
