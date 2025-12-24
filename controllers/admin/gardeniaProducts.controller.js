@@ -4,6 +4,7 @@ const {
   GetObjectCommand,
 } = require("@aws-sdk/client-s3");
 const { s3Client } = require("../../config/s3Config");
+const Papa = require("papaparse");
 
 const streamToString = async (stream) => {
   if (!stream) {
@@ -21,7 +22,110 @@ const streamToString = async (stream) => {
 };
 
 /**
- * Get all products from S3 bucket researcher2/gardenia/
+ * Parse CSV file content
+ * @param {string} csvContent - CSV file content
+ * @returns {Array} - Parsed CSV rows as objects
+ */
+const parseCSV = (csvContent) => {
+  try {
+    const result = Papa.parse(csvContent, {
+      header: true,
+      skipEmptyLines: true,
+    });
+
+    if (result.errors && result.errors.length > 0) {
+      console.error("CSV parsing errors:", result.errors);
+    }
+
+    return Array.isArray(result.data) ? result.data : [];
+  } catch (error) {
+    console.error("Error parsing CSV:", error);
+    return [];
+  }
+};
+
+/**
+ * Fetch unprocessed products from CSV files
+ * @param {string} clientName - Client name
+ * @param {Array<string>} categories - List of categories to fetch
+ * @returns {Promise<Array>} - Array of unprocessed products
+ */
+const fetchUnprocessedProducts = async (clientName, categories) => {
+  const unprocessedProducts = [];
+  const unprocessedBucket = "testdevopsetl";
+  const errors = [];
+
+  for (const category of categories) {
+    try {
+      // Normalize category name for S3 path (replace spaces with underscores)
+      const normalizedCategory = category.replace(/\s+/g, "_");
+      const csvKey = `unprocesseddata/${clientName}/${normalizedCategory}.csv`;
+
+      console.log(`Fetching unprocessed CSV: s3://${unprocessedBucket}/${csvKey}`);
+
+      const getCommand = new GetObjectCommand({
+        Bucket: unprocessedBucket,
+        Key: csvKey,
+      });
+
+      const response = await s3Client.send(getCommand);
+      const csvContent = await streamToString(response.Body);
+
+      if (!csvContent || csvContent.trim().length === 0) {
+        console.log(`Empty CSV file for category: ${category}`);
+        continue;
+      }
+
+      // Parse CSV
+      const csvRows = parseCSV(csvContent);
+
+      // Convert CSV rows to product format
+      csvRows.forEach((row, index) => {
+        try {
+          // Extract product ID - try common field names
+          const productId = row.product_id || row.id || row.productId || row.Product_ID || `unprocessed_${normalizedCategory}_${index}`;
+          
+          // Extract category from row or use the category from file path
+          const productCategory = row.category || row.Category || row.product_category || category;
+
+          if (productId) {
+            unprocessedProducts.push({
+              id: productId,
+              product: productId,
+              category: productCategory,
+              processing: "UNPROCESSED",
+              ecommerce: "DEACTIVE", // Default status
+              // Include CSV row data as attributes
+              attributes: row,
+              source_urls: row.source_urls ? (Array.isArray(row.source_urls) ? row.source_urls : [row.source_urls]) : [],
+              fullProduct: row, // Store full CSV row as product object
+            });
+          }
+        } catch (rowError) {
+          console.error(`Error processing CSV row ${index} in ${csvKey}:`, rowError);
+        }
+      });
+
+      console.log(`Fetched ${csvRows.length} unprocessed products for category: ${category}`);
+    } catch (error) {
+      // If file doesn't exist, that's okay - just log and continue
+      if (error.name === "NoSuchKey" || error.$metadata?.httpStatusCode === 404) {
+        console.log(`No unprocessed CSV file found for category: ${category}`);
+      } else {
+        console.error(`Error fetching unprocessed CSV for category ${category}:`, error);
+        errors.push({
+          category,
+          error: error.message,
+        });
+      }
+    }
+  }
+
+  return { unprocessedProducts, errors };
+};
+
+/**
+ * Get all products from S3 bucket researcher2 (processed) and testdevopsetl (unprocessed)
  * Reads all JSONL files and extracts product_id and category
  */
 exports.getGardeniaProducts = async (req, res) => {
@@ -37,7 +141,7 @@ exports.getGardeniaProducts = async (req, res) => {
     }
     const PREFIX = `${clientName}/`;
     
-    // List all JSONL files in the gardenia folder
+    // List all JSONL files in the processed bucket
     const jsonlFiles = [];
     let continuationToken = undefined;
 
@@ -52,8 +156,6 @@ exports.getGardeniaProducts = async (req, res) => {
       continuationToken = listResponse.IsTruncated
         ? listResponse.NextContinuationToken
         : undefined;
-
-        console.log("listResponse.Contents", listResponse.Contents);
 
       (listResponse.Contents || []).forEach((object) => {
         if (object?.Key && object.Key.endsWith(".jsonl")) {
@@ -70,16 +172,8 @@ exports.getGardeniaProducts = async (req, res) => {
 
     console.log("jsonlFiles", jsonlFiles);
 
-    if (jsonlFiles.length === 0) {
-      return res.status(404).json({
-        status: false,
-        message: "No JSONL files found in S3 bucket",
-        data: [],
-      });
-    }
-
-    // Read and parse all JSONL files
-    const allProducts = [];
+    // Read and parse all JSONL files (processed products)
+    const processedProducts = [];
     const errors = [];
 
     for (const file of jsonlFiles) {
@@ -92,9 +186,6 @@ exports.getGardeniaProducts = async (req, res) => {
         const response = await s3Client.send(getCommand);
         const fileContent = await streamToString(response.Body);
 
-        console.log("fileContent", fileContent);
-        
-
         if (!fileContent) {
           continue;
         }
@@ -104,19 +195,16 @@ exports.getGardeniaProducts = async (req, res) => {
           .split(/\r?\n/)
           .map((line) => line.trim())
           .filter((line) => line.length > 0);
-      
-        console.log("lines", lines);
-        
 
         lines.forEach((line) => {
           try {
             const product = JSON.parse(line);
             if (product.product_id && product.category) {
-              allProducts.push({
+              processedProducts.push({
                 id: product.product_id,
                 product: product.product_id,
                 category: product.category,
-                processing: "PROCESSED", // Default status
+                processing: "PROCESSED",
                 ecommerce: "DEACTIVE", // Default status
                 // Include full product data for factsheet
                 attributes: product.attributes || {},
@@ -138,12 +226,32 @@ exports.getGardeniaProducts = async (req, res) => {
       }
     }
 
+    // Get unique categories from processed products
+    const categories = [...new Set(processedProducts.map(p => p.category).filter(Boolean))];
+    console.log(`Found ${categories.length} unique categories in processed data`);
+
+    // Fetch unprocessed products for all categories
+    // If no categories found, unprocessedProducts will be empty
+    const { unprocessedProducts, errors: unprocessedErrors } = await fetchUnprocessedProducts(clientName, categories);
+    
+    // Combine errors
+    if (unprocessedErrors.length > 0) {
+      errors.push(...unprocessedErrors.map(e => ({ file: `unprocessed/${e.category}`, error: e.error })));
+    }
+
+    // Combine processed and unprocessed products
+    const allProducts = [...processedProducts, ...unprocessedProducts];
+
+    console.log(`Total products: ${allProducts.length} (${processedProducts.length} processed, ${unprocessedProducts.length} unprocessed)`);
+
     return res.status(200).json({
       status: true,
       message: "Products fetched successfully",
       data: allProducts,
       errors: errors.length > 0 ? errors : undefined,
       totalProducts: allProducts.length,
+      processedCount: processedProducts.length,
+      unprocessedCount: unprocessedProducts.length,
     });
   } catch (error) {
     console.error("Failed to fetch gardenia products:", error);
