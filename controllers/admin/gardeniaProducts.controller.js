@@ -66,6 +66,10 @@ exports.getGardeniaProducts = async (req, res) => {
       });
     } while (continuationToken);
 
+    console.log("jsonlFiles", jsonlFiles);
+
+    console.log("listResponse.Contents", listResponse.Contents);
+
     if (jsonlFiles.length === 0) {
       return res.status(404).json({
         status: false,
@@ -88,6 +92,9 @@ exports.getGardeniaProducts = async (req, res) => {
         const response = await s3Client.send(getCommand);
         const fileContent = await streamToString(response.Body);
 
+        console.log("fileContent", fileContent);
+        
+
         if (!fileContent) {
           continue;
         }
@@ -97,6 +104,9 @@ exports.getGardeniaProducts = async (req, res) => {
           .split(/\r?\n/)
           .map((line) => line.trim())
           .filter((line) => line.length > 0);
+      
+        console.log("lines", lines);
+        
 
         lines.forEach((line) => {
           try {
@@ -107,7 +117,7 @@ exports.getGardeniaProducts = async (req, res) => {
                 product: product.product_id,
                 category: product.category,
                 processing: "PROCESSED", // Default status
-                ecommerce: "ACTIVE", // Default status
+                ecommerce: "DEACTIVE", // Default status
                 // Include full product data for factsheet
                 attributes: product.attributes || {},
                 source_urls: product.source_urls || [],
