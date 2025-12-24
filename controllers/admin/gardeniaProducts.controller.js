@@ -46,79 +46,111 @@ const parseCSV = (csvContent) => {
 
 /**
  * Fetch unprocessed products from CSV files
+ * Lists all CSV files in unprocesseddata/${clientName}/ directory
  * @param {string} clientName - Client name
- * @param {Array<string>} categories - List of categories to fetch
  * @returns {Promise<Array>} - Array of unprocessed products
  */
-const fetchUnprocessedProducts = async (clientName, categories) => {
+const fetchUnprocessedProducts = async (clientName) => {
   const unprocessedProducts = [];
   const unprocessedBucket = "testdevopsetl";
   const errors = [];
+  const prefix = `unprocesseddata/${clientName}/`;
 
-  for (const category of categories) {
-    try {
-      // Normalize category name for S3 path (replace spaces with underscores)
-      const normalizedCategory = category.replace(/\s+/g, "_");
-      const csvKey = `unprocesseddata/${clientName}/${normalizedCategory}.csv`;
+  try {
+    // List all CSV files in the unprocessed data directory
+    const csvFiles = [];
+    let continuationToken = undefined;
 
-      console.log(`Fetching unprocessed CSV: s3://${unprocessedBucket}/${csvKey}`);
-
-      const getCommand = new GetObjectCommand({
+    do {
+      const listCommand = new ListObjectsV2Command({
         Bucket: unprocessedBucket,
-        Key: csvKey,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
       });
 
-      const response = await s3Client.send(getCommand);
-      const csvContent = await streamToString(response.Body);
+      const listResponse = await s3Client.send(listCommand);
+      continuationToken = listResponse.IsTruncated
+        ? listResponse.NextContinuationToken
+        : undefined;
 
-      if (!csvContent || csvContent.trim().length === 0) {
-        console.log(`Empty CSV file for category: ${category}`);
-        continue;
-      }
-
-      // Parse CSV
-      const csvRows = parseCSV(csvContent);
-
-      // Convert CSV rows to product format
-      csvRows.forEach((row, index) => {
-        try {
-          // Extract product ID - try common field names
-          const productId = row.product_id || row.id || row.productId || row.Product_ID || `unprocessed_${normalizedCategory}_${index}`;
-          
-          // Extract category from row or use the category from file path
-          const productCategory = row.category || row.Category || row.product_category || category;
-
-          if (productId) {
-            unprocessedProducts.push({
-              id: productId,
-              product: productId,
-              category: productCategory,
-              processing: "UNPROCESSED",
-              ecommerce: "DEACTIVE", // Default status
-              // Include CSV row data as attributes
-              attributes: row,
-              source_urls: row.source_urls ? (Array.isArray(row.source_urls) ? row.source_urls : [row.source_urls]) : [],
-              fullProduct: row, // Store full CSV row as product object
-            });
-          }
-        } catch (rowError) {
-          console.error(`Error processing CSV row ${index} in ${csvKey}:`, rowError);
+      (listResponse.Contents || []).forEach((object) => {
+        if (object?.Key && object.Key.endsWith(".csv")) {
+          // Extract category name from file path
+          // Format: unprocesseddata/${clientName}/${Category}.csv
+          const fileName = object.Key.replace(prefix, "").replace(".csv", "");
+          csvFiles.push({
+            key: object.Key,
+            category: fileName.replace(/_/g, " "), // Convert underscores to spaces
+          });
         }
       });
+    } while (continuationToken);
 
-      console.log(`Fetched ${csvRows.length} unprocessed products for category: ${category}`);
-    } catch (error) {
-      // If file doesn't exist, that's okay - just log and continue
-      if (error.name === "NoSuchKey" || error.$metadata?.httpStatusCode === 404) {
-        console.log(`No unprocessed CSV file found for category: ${category}`);
-      } else {
-        console.error(`Error fetching unprocessed CSV for category ${category}:`, error);
+    console.log(`Found ${csvFiles.length} unprocessed CSV files for client: ${clientName}`);
+
+    // Read and parse each CSV file
+    for (const file of csvFiles) {
+      try {
+        console.log(`Fetching unprocessed CSV: s3://${unprocessedBucket}/${file.key}`);
+
+        const getCommand = new GetObjectCommand({
+          Bucket: unprocessedBucket,
+          Key: file.key,
+        });
+
+        const response = await s3Client.send(getCommand);
+        const csvContent = await streamToString(response.Body);
+
+        if (!csvContent || csvContent.trim().length === 0) {
+          console.log(`Empty CSV file: ${file.key}`);
+          continue;
+        }
+
+        // Parse CSV
+        const csvRows = parseCSV(csvContent);
+
+        // Convert CSV rows to product format
+        csvRows.forEach((row, index) => {
+          try {
+            // Extract product ID - try common field names
+            const productId = row.product_id || row.id || row.productId || row.Product_ID || `unprocessed_${file.category}_${index}`;
+            
+            // Extract category from row or use the category from file name
+            const productCategory = row.category || row.Category || row.product_category || file.category;
+
+            if (productId) {
+              unprocessedProducts.push({
+                id: productId,
+                product: productId,
+                category: productCategory,
+                processing: "UNPROCESSED",
+                ecommerce: "DEACTIVE", // Default status
+                // Include CSV row data as attributes
+                attributes: row,
+                source_urls: row.source_urls ? (Array.isArray(row.source_urls) ? row.source_urls : [row.source_urls]) : [],
+                fullProduct: row, // Store full CSV row as product object
+              });
+            }
+          } catch (rowError) {
+            console.error(`Error processing CSV row ${index} in ${file.key}:`, rowError);
+          }
+        });
+
+        console.log(`Fetched ${csvRows.length} unprocessed products from ${file.key}`);
+      } catch (fileError) {
+        console.error(`Error reading unprocessed CSV file ${file.key}:`, fileError);
         errors.push({
-          category,
-          error: error.message,
+          file: file.key,
+          error: fileError.message,
         });
       }
     }
+  } catch (error) {
+    console.error(`Error listing unprocessed CSV files for client ${clientName}:`, error);
+    errors.push({
+      file: prefix,
+      error: error.message,
+    });
   }
 
   return { unprocessedProducts, errors };
@@ -226,13 +258,9 @@ exports.getGardeniaProducts = async (req, res) => {
       }
     }
 
-    // Get unique categories from processed products
-    const categories = [...new Set(processedProducts.map(p => p.category).filter(Boolean))];
-    console.log(`Found ${categories.length} unique categories in processed data`);
-
-    // Fetch unprocessed products for all categories
-    // If no categories found, unprocessedProducts will be empty
-    const { unprocessedProducts, errors: unprocessedErrors } = await fetchUnprocessedProducts(clientName, categories);
+    // Fetch unprocessed products independently (not based on processed categories)
+    // Lists all CSV files in unprocesseddata/${clientName}/ directory
+    const { unprocessedProducts, errors: unprocessedErrors } = await fetchUnprocessedProducts(clientName);
     
     // Combine errors
     if (unprocessedErrors.length > 0) {
