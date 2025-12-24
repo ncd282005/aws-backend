@@ -62,9 +62,23 @@ const runNudgeQualityScript = async (clientName, category) => {
   
   // Change to the script directory before executing (following the pattern from runScripts.controller.js)
   const scriptDir = "/var/www/html/qgen";
-  const command = `bash ./deploy.sh ${s3InputPath} ${outputPath}`;
   
-  console.log(`Executing nudge quality script: ${command} in ${scriptDir}`);
+  // Ensure AWS credentials are available to the script
+  // Export them explicitly so AWS CLI can access them
+  const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  const awsRegion = process.env.AWS_REGION || "ap-south-1";
+  
+  if (!awsAccessKeyId || !awsSecretAccessKey) {
+    throw new Error("AWS credentials are not configured. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.");
+  }
+  
+  // Build command with explicit AWS credential export
+  // This ensures AWS CLI commands in the script can access S3
+  const command = `export AWS_ACCESS_KEY_ID="${awsAccessKeyId}" && export AWS_SECRET_ACCESS_KEY="${awsSecretAccessKey}" && export AWS_DEFAULT_REGION="${awsRegion}" && export AWS_REGION="${awsRegion}" && bash ./deploy.sh ${s3InputPath} ${outputPath}`;
+  
+  console.log(`Executing nudge quality script: bash ./deploy.sh ${s3InputPath} ${outputPath} in ${scriptDir}`);
+  console.log(`AWS credentials configured for script execution`);
   
   return execAsync(command, {
     cwd: scriptDir,
@@ -72,9 +86,10 @@ const runNudgeQualityScript = async (clientName, category) => {
     env: {
       ...process.env,
       // Ensure AWS credentials are available to the script
-      AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
-      AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
-      AWS_REGION: process.env.AWS_REGION || "ap-south-1",
+      AWS_ACCESS_KEY_ID: awsAccessKeyId,
+      AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,
+      AWS_DEFAULT_REGION: awsRegion,
+      AWS_REGION: awsRegion,
     },
   });
 };
