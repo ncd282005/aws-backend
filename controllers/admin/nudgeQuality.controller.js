@@ -1,10 +1,32 @@
 /* global process */
 const { exec } = require("child_process");
 const { promisify } = require("util");
-const { HeadObjectCommand } = require("@aws-sdk/client-s3");
+const { HeadObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { s3Client } = require("../../config/s3Config");
+const fs = require("fs");
+const path = require("path");
 
 const execAsync = promisify(exec);
+
+/**
+ * Helper function to convert stream to string
+ * @param {Stream} stream - Stream to convert
+ * @returns {Promise<string>}
+ */
+const streamToString = async (stream) => {
+  if (!stream) {
+    return "";
+  }
+  if (typeof stream.transformToString === "function") {
+    return stream.transformToString();
+  }
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    stream.on("data", (chunk) => chunks.push(chunk));
+    stream.on("error", reject);
+    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+  });
+};
 
 /**
  * Run nudge quality script (deploy.sh) for a category
@@ -59,39 +81,91 @@ const runNudgeQualityScript = async (clientName, category) => {
   if (!fileExists) {
     throw new Error(`S3 file does not exist: ${s3InputPath}. Please verify the file path and ensure the file has been uploaded.`);
   }
+
+  // Download S3 file to a temporary local location
+  // The deploy.sh script uses [[ ! -e "$INPUT_PATH" ]] which only works for local files
+  const tempDir = "/tmp/qgen_inputs";
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
   
-  // Change to the script directory before executing (following the pattern from runScripts.controller.js)
+  const tempFileName = `${clientName}_${normalizedCategory}_${Date.now()}.jsonl`;
+  const localInputPath = path.join(tempDir, tempFileName);
+  
+  console.log(`Downloading S3 file to local path: ${localInputPath}`);
+  
+  try {
+    // Download the file from S3
+    const bucket = "researcher2";
+    const key = `${clientName}/${normalizedCategory}.jsonl`;
+    
+    const getObjectCommand = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    });
+    
+    const response = await s3Client.send(getObjectCommand);
+    const fileContent = await streamToString(response.Body);
+    
+    // Write to local file
+    fs.writeFileSync(localInputPath, fileContent, 'utf8');
+    console.log(`S3 file downloaded successfully to ${localInputPath}`);
+  } catch (error) {
+    console.error("Error downloading S3 file:", error);
+    throw new Error(`Failed to download S3 file: ${error.message}`);
+  }
+  
+  // Change to the script directory before executing
   const scriptDir = "/var/www/html/qgen";
   
-  // Ensure AWS credentials are available to the script
-  // Export them explicitly so AWS CLI can access them
+  // Ensure AWS credentials are available to the script (for any S3 operations in run.sh)
   const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
   const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
   const awsRegion = process.env.AWS_REGION || "ap-south-1";
   
   if (!awsAccessKeyId || !awsSecretAccessKey) {
+    // Clean up temp file
+    if (fs.existsSync(localInputPath)) {
+      fs.unlinkSync(localInputPath);
+    }
     throw new Error("AWS credentials are not configured. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.");
   }
   
   // Build command with explicit AWS credential export
-  // This ensures AWS CLI commands in the script can access S3
-  const command = `export AWS_ACCESS_KEY_ID="${awsAccessKeyId}" && export AWS_SECRET_ACCESS_KEY="${awsSecretAccessKey}" && export AWS_DEFAULT_REGION="${awsRegion}" && export AWS_REGION="${awsRegion}" && bash ./deploy.sh ${s3InputPath} ${outputPath}`;
+  // Use the local file path instead of S3 path
+  const command = `export AWS_ACCESS_KEY_ID="${awsAccessKeyId}" && export AWS_SECRET_ACCESS_KEY="${awsSecretAccessKey}" && export AWS_DEFAULT_REGION="${awsRegion}" && export AWS_REGION="${awsRegion}" && bash ./deploy.sh ${localInputPath} ${outputPath}`;
   
-  console.log(`Executing nudge quality script: bash ./deploy.sh ${s3InputPath} ${outputPath} in ${scriptDir}`);
+  console.log(`Executing nudge quality script: bash ./deploy.sh ${localInputPath} ${outputPath} in ${scriptDir}`);
   console.log(`AWS credentials configured for script execution`);
   
-  return execAsync(command, {
-    cwd: scriptDir,
-    timeout: 3600000, // 1 hour timeout
-    env: {
-      ...process.env,
-      // Ensure AWS credentials are available to the script
-      AWS_ACCESS_KEY_ID: awsAccessKeyId,
-      AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,
-      AWS_DEFAULT_REGION: awsRegion,
-      AWS_REGION: awsRegion,
-    },
-  });
+  try {
+    const result = await execAsync(command, {
+      cwd: scriptDir,
+      timeout: 3600000, // 1 hour timeout
+      env: {
+        ...process.env,
+        AWS_ACCESS_KEY_ID: awsAccessKeyId,
+        AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,
+        AWS_DEFAULT_REGION: awsRegion,
+        AWS_REGION: awsRegion,
+      },
+    });
+    
+    // Clean up temporary file after successful execution
+    if (fs.existsSync(localInputPath)) {
+      fs.unlinkSync(localInputPath);
+      console.log(`Cleaned up temporary file: ${localInputPath}`);
+    }
+    
+    return result;
+  } catch (error) {
+    // Clean up temporary file on error
+    if (fs.existsSync(localInputPath)) {
+      fs.unlinkSync(localInputPath);
+      console.log(`Cleaned up temporary file after error: ${localInputPath}`);
+    }
+    throw error;
+  }
 };
 
 /**
