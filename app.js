@@ -8,9 +8,10 @@ const path = require("path");
 const connectDB = require("./config/db");
 const userRoutes = require("./routes/v1/userRoutes");
 const demoRoutes = require("./routes/v1/demoRoutes");
-const adminRoutes = require("./routes/v1/adminRoutes")
+const adminRoutes = require("./routes/v1/adminRoutes");
 const analyticsRoutes = require("./routes/v1/analyticsRoutes");
 const trackLogRoutes = require("./routes/v1/trackLogRoutes");
+const webhookShopifyRoutes = require("./routes/v1/webhook/shopifyRoutes");
 require("dotenv").config();
 
 const cron = require("node-cron");
@@ -42,7 +43,7 @@ app.use("/api/v1/demo", demoRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/track", trackLogRoutes);
-
+app.use("/api/v1/webhook/shopify", webhookShopifyRoutes);
 
 cron.schedule("0 * * * *", async () => {
   await clientCrone();
