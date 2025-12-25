@@ -42,6 +42,14 @@ const syncStateSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // Script execution state
+    isRunningScripts: {
+      type: Boolean,
+      default: false,
+    },
+    scriptsStartedAt: {
+      type: Date,
+    },
     // Last successful sync completion
     lastSyncDate: {
       type: Date,
