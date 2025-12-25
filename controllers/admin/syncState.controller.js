@@ -58,6 +58,8 @@ exports.saveSyncState = async (req, res) => {
       fieldMappings,
       pipelineStatus,
       selectedCategories,
+      isRunningScripts,
+      scriptsStartedAt,
       metadata,
     } = req.body;
 
@@ -88,6 +90,8 @@ exports.saveSyncState = async (req, res) => {
           ...(fieldMappings !== undefined && { fieldMappings }),
           ...(pipelineStatus !== undefined && { pipelineStatus }),
           ...(selectedCategories !== undefined && { selectedCategories }),
+          ...(isRunningScripts !== undefined && { isRunningScripts }),
+          ...(scriptsStartedAt !== undefined && { scriptsStartedAt }),
           ...(metadata !== undefined && { metadata }),
         },
       },
