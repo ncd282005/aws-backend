@@ -141,6 +141,35 @@ exports.runScripts = async (req, res) => {
       }];
     }
 
+    // Both scripts completed successfully - save completion date
+    try {
+      const SyncState = require("../../models/syncState.schema");
+      const now = new Date();
+      
+      await SyncState.findOneAndUpdate(
+        { clientName },
+        {
+          $set: {
+            status: "completed",
+            currentStep: 1, // Reset to step 1 after completion
+            lastSyncDate: now,
+            lastSyncCompletedAt: now,
+            // Clear intermediate state
+            pipelineStatus: null,
+            selectedCategories: [],
+          },
+        },
+        {
+          upsert: true,
+          new: true,
+        }
+      );
+      console.log("Sync completion date saved successfully");
+    } catch (syncError) {
+      console.error("Error saving sync completion date:", syncError);
+      // Don't fail the request if sync state save fails
+    }
+
     // Both scripts completed successfully
     return res.status(200).json({
       status: true,

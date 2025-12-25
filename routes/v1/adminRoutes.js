@@ -36,6 +36,12 @@ const {
   runNudgeQuality,
   getQuestionnaire,
 } = require("../../controllers/admin/nudgeQuality.controller");
+const {
+  getSyncState,
+  saveSyncState,
+  completeSync,
+  resetSyncState,
+} = require("../../controllers/admin/syncState.controller");
 
 const { authenticateToken } = require("../../middleware/authenticate");
 const uploadCsvMulter = require("../../utils/multerCsvConfig");
@@ -72,6 +78,12 @@ router.get("/gardenia-products", getGardeniaProducts);
 router.post("/toggle-product-status", toggleProductStatus);
 router.post("/nudge-quality", runNudgeQuality);
 router.get("/nudge-quality/questionnaire", getQuestionnaire);
+
+// Sync state management routes
+router.get("/sync-state", getSyncState);
+router.post("/sync-state", saveSyncState);
+router.post("/sync-state/complete", completeSync);
+router.post("/sync-state/reset", resetSyncState);
 
 // Client management routes (no authentication required for now)
 router.get("/clients", getAllClients);
