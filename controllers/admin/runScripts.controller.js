@@ -157,6 +157,7 @@ exports.runScripts = async (req, res) => {
             // Clear intermediate state
             pipelineStatus: null,
             selectedCategories: [],
+            isRunningScripts: false, // Clear scripts running state
           },
         },
         {
