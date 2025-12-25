@@ -1,9 +1,8 @@
 /* global process */
 const { exec } = require("child_process");
 const { promisify } = require("util");
-const { HeadObjectCommand } = require("@aws-sdk/client-s3");
+const { HeadObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { s3Client } = require("../../config/s3Config");
-const fs = require("fs");
 
 const execAsync = promisify(exec);
 
@@ -216,28 +215,22 @@ exports.getQuestionnaire = async (req, res) => {
     }
 
     // The questionnaire.json file is generated at /var/www/html/qgen/output/questionnaire.json
-    const questionnairePath = "/var/www/html/qgen/output/questionnaire.json";
-
-    console.log(`Reading questionnaire from: ${questionnairePath}`);
-
-    // Check if file exists
-    if (!fs.existsSync(questionnairePath)) {
-      return res.status(404).json({
-        status: false,
-        message: "Questionnaire file not found. Please run the nudge quality script first.",
-        data: null,
-      });
-    }
-
     // Read and parse the JSON file
     try {
-      const fileContent = fs.readFileSync(questionnairePath, 'utf8');
-      const questionnaireData = JSON.parse(fileContent);
-
+      const command = new GetObjectCommand({
+        Bucket: "questiongenerationmprompt",
+        Key: `${clientName}/${category}.jsonl`,
+      });
+      console.log("command", command);
+      const response = await s3Client.send(command);
+      const questionnaireData = await streamToString(response.Body);
+      console.log("questionnaireData", questionnaireData);
+      const parsedQuestionnaireData = JSON.parse(questionnaireData);
+      console.log("parsedQuestionnaireData", parsedQuestionnaireData);
       return res.status(200).json({
         status: true,
         message: "Questionnaire data retrieved successfully",
-        data: questionnaireData,
+        data: parsedQuestionnaireData,
       });
     } catch (parseError) {
       console.error("Error parsing questionnaire JSON:", parseError);
