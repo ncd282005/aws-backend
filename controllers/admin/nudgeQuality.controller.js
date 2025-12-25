@@ -73,7 +73,7 @@ const runNudgeQualityScript = async (clientName, category) => {
   console.log("normalizedCategory", normalizedCategory);
   
   const s3InputPath = `s3://researcher2/${clientName}/${normalizedCategory}.jsonl`;
-  const outputPath = `/var/www/html/qgen/output/questionnaire.json`;
+  const outputPath = `s3://questiongenerationmprompt/${clientName}/${normalizedCategory}.jsonl`;
   
   // Verify S3 file exists before running script
   const fileExists = await verifyS3FileExists(clientName, normalizedCategory);
