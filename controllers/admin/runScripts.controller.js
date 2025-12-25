@@ -1,6 +1,7 @@
 /* global process */
 const { exec } = require("child_process");
 const { promisify } = require("util");
+const { runNudgeQualityForCategories } = require("../../utils/nudgeQualityHelper");
 
 const execAsync = promisify(exec);
 
@@ -115,6 +116,31 @@ exports.runScripts = async (req, res) => {
       });
     }
 
+    // After r2.sh completes successfully, run nudge quality for all categories
+    let nudgeQualityResults = [];
+    try {
+      console.log("r2.sh completed successfully. Starting nudge quality for all categories...");
+      nudgeQualityResults = await runNudgeQualityForCategories(clientName, categories);
+      
+      const successCount = nudgeQualityResults.filter(r => r.success).length;
+      const failureCount = nudgeQualityResults.filter(r => !r.success).length;
+      
+      console.log(`Nudge quality completed: ${successCount} succeeded, ${failureCount} failed`);
+      
+      if (failureCount > 0) {
+        console.warn("Some categories failed nudge quality:", 
+          nudgeQualityResults.filter(r => !r.success).map(r => r.category).join(", ")
+        );
+      }
+    } catch (error) {
+      console.error("Error running nudge quality for categories:", error);
+      // Don't fail the entire request if nudge quality fails, but log it
+      nudgeQualityResults = [{
+        error: "Failed to run nudge quality for categories",
+        details: error.message,
+      }];
+    }
+
     // Both scripts completed successfully
     return res.status(200).json({
       status: true,
@@ -127,6 +153,12 @@ exports.runScripts = async (req, res) => {
         r2: {
           stdout: r2Result.stdout,
           stderr: r2Result.stderr || "",
+        },
+        nudgeQuality: {
+          results: nudgeQualityResults,
+          totalCategories: categories.length,
+          successCount: nudgeQualityResults.filter(r => r.success).length,
+          failureCount: nudgeQualityResults.filter(r => !r.success).length,
         },
       },
     });
