@@ -1,4 +1,4 @@
-const { GetObjectCommand } = require("@aws-sdk/client-s3");
+const { GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { s3Client } = require("../../config/s3Config");
 const { runNudgeQualityScript } = require("../../utils/nudgeQualityHelper");
 
@@ -184,6 +184,160 @@ exports.getQuestionnaire = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: "Unexpected error occurred while reading questionnaire",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      data: null,
+    });
+  }
+};
+
+/**
+ * Update questionnaire data in S3
+ * PUT /api/v1/admin/nudge-quality/questionnaire
+ * Body: { clientName: string, category: string, questionIndex: number, questionData: object }
+ */
+exports.updateQuestionnaire = async (req, res) => {
+  try {
+    const { clientName, category, questionIndex, questionData } = req.body;
+
+    // Validate input
+    if (!clientName || typeof clientName !== "string") {
+      return res.status(400).json({
+        status: false,
+        message: "Client name is required and must be a string",
+        data: null,
+      });
+    }
+
+    if (!category || typeof category !== "string") {
+      return res.status(400).json({
+        status: false,
+        message: "Category is required and must be a string",
+        data: null,
+      });
+    }
+
+    if (questionIndex === undefined || questionIndex === null || typeof questionIndex !== "number") {
+      return res.status(400).json({
+        status: false,
+        message: "Question index is required and must be a number",
+        data: null,
+      });
+    }
+
+    if (!questionData || typeof questionData !== "object") {
+      return res.status(400).json({
+        status: false,
+        message: "Question data is required and must be an object",
+        data: null,
+      });
+    }
+
+    // Normalize category name to match S3 key format (spaces to underscores)
+    const normalizedCategory = category.replace(/\s+/g, "_");
+    const s3Key = `${clientName}/${normalizedCategory}.jsonl`;
+    const bucketName = "questiongenerationmprompt";
+
+    try {
+      // First, fetch the existing questionnaire data
+      const getCommand = new GetObjectCommand({
+        Bucket: bucketName,
+        Key: s3Key,
+      });
+
+      console.log(`Fetching questionnaire from S3: s3://${bucketName}/${s3Key}`);
+      const getResponse = await s3Client.send(getCommand);
+      const existingData = await streamToString(getResponse.Body);
+
+      if (!existingData || existingData.trim().length === 0) {
+        return res.status(404).json({
+          status: false,
+          message: "Questionnaire file is empty or not found",
+          data: null,
+        });
+      }
+
+      // Parse the existing data
+      const questionnaire = JSON.parse(existingData);
+
+      // Validate question index
+      if (!questionnaire.questions || !Array.isArray(questionnaire.questions)) {
+        return res.status(400).json({
+          status: false,
+          message: "Invalid questionnaire format: questions array not found",
+          data: null,
+        });
+      }
+
+      if (questionIndex < 0 || questionIndex >= questionnaire.questions.length) {
+        return res.status(400).json({
+          status: false,
+          message: `Question index ${questionIndex} is out of range. Total questions: ${questionnaire.questions.length}`,
+          data: null,
+        });
+      }
+
+      // Update the specific question
+      questionnaire.questions[questionIndex] = {
+        ...questionnaire.questions[questionIndex],
+        ...questionData,
+      };
+
+      // Convert back to JSON string
+      const updatedData = JSON.stringify(questionnaire, null, 2);
+
+      // Upload the updated data back to S3
+      const putCommand = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: s3Key,
+        Body: updatedData,
+        ContentType: "application/json",
+      });
+
+      console.log(`Updating questionnaire in S3: s3://${bucketName}/${s3Key}`);
+      await s3Client.send(putCommand);
+
+      console.log("Questionnaire updated successfully");
+      return res.status(200).json({
+        status: true,
+        message: "Questionnaire updated successfully",
+        data: questionnaire.questions[questionIndex],
+      });
+    } catch (s3Error) {
+      // Check if it's a 404 (file not found)
+      if (s3Error.name === "NoSuchKey" || s3Error.$metadata?.httpStatusCode === 404) {
+        console.error(`Questionnaire file not found: s3://${bucketName}/${s3Key}`);
+        return res.status(404).json({
+          status: false,
+          message: `Questionnaire file not found for category "${category}"`,
+          data: null,
+        });
+      }
+
+      // Check if it's a JSON parse error
+      if (s3Error instanceof SyntaxError) {
+        console.error("Error parsing questionnaire JSON:", s3Error);
+        return res.status(500).json({
+          status: false,
+          message: "Failed to parse questionnaire file",
+          error: s3Error.message,
+          data: null,
+        });
+      }
+
+      // Other S3 errors
+      console.error("Error updating questionnaire in S3:", s3Error);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to update questionnaire file in S3",
+        error: s3Error.message,
+        data: null,
+      });
+    }
+  } catch (error) {
+    console.error("Unexpected error in updateQuestionnaire controller:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Unexpected error occurred while updating questionnaire",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
       data: null,
     });

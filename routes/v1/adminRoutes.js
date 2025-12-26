@@ -35,6 +35,7 @@ const {
 const {
   runNudgeQuality,
   getQuestionnaire,
+  updateQuestionnaire,
 } = require("../../controllers/admin/nudgeQuality.controller");
 const {
   getSyncState,
@@ -78,6 +79,7 @@ router.get("/gardenia-products", getGardeniaProducts);
 router.post("/toggle-product-status", toggleProductStatus);
 router.post("/nudge-quality", runNudgeQuality);
 router.get("/nudge-quality/questionnaire", getQuestionnaire);
+router.put("/nudge-quality/questionnaire", updateQuestionnaire);
 
 // Sync state management routes
 router.get("/sync-state", getSyncState);
