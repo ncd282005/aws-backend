@@ -56,6 +56,12 @@ const listCategoryProductKeys = async (clientName) => {
 
     (response.Contents || []).forEach((object) => {
       if (!object?.Key) return;
+      
+      // Only process .jsonl files
+      if (!object.Key.endsWith(".jsonl")) {
+        return;
+      }
+      
       const segments = object.Key.split("/");
       if (segments.length < 4) {
         return;
@@ -110,15 +116,20 @@ const countProductsInCsv = async (key) => {
   // Parse JSONL format - each line is a JSON object
   let productCount = 0;
   for (const line of lines) {
+    // Skip empty lines
+    if (!line || line.length === 0) {
+      continue;
+    }
+    
     try {
       const product = JSON.parse(line);
       // Validate that it's a product object (has product_id or category)
-      if (product && (product.product_id || product.category)) {
+      if (product && typeof product === "object" && (product.product_id || product.category)) {
         productCount++;
       }
     } catch (error) {
-      // Skip invalid JSON lines
-      console.warn(`Skipping invalid JSON line in ${key}:`, error.message);
+      // Only log if it's not a JSONL file (shouldn't happen if we filter correctly)
+      // But skip silently for now to avoid noise
       continue;
     }
   }
