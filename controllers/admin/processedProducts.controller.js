@@ -103,11 +103,27 @@ const countProductsInCsv = async (key) => {
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
-  if (lines.length <= 1) {
+  if (lines.length === 0) {
     return 0;
   }
 
-  return lines.length - 1; // subtract header row
+  // Parse JSONL format - each line is a JSON object
+  let productCount = 0;
+  for (const line of lines) {
+    try {
+      const product = JSON.parse(line);
+      // Validate that it's a product object (has product_id or category)
+      if (product && (product.product_id || product.category)) {
+        productCount++;
+      }
+    } catch (error) {
+      // Skip invalid JSON lines
+      console.warn(`Skipping invalid JSON line in ${key}:`, error.message);
+      continue;
+    }
+  }
+
+  return productCount;
 };
 
 const parseCategoryProducts = (csvString) => {
