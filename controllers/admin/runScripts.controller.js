@@ -83,6 +83,32 @@ exports.runScripts = async (req, res) => {
       }
     } catch (error) {
       console.error("r1.sh failed:", error);
+      
+      // Update sync state to reflect script failure
+      try {
+        const SyncState = require("../../models/syncState.schema");
+        await SyncState.findOneAndUpdate(
+          { clientName },
+          {
+            $set: {
+              status: "failed",
+              currentStep: 1, // Reset to step 1 on failure
+              isRunningScripts: false, // Clear scripts running state
+              pipelineStatus: null,
+              selectedCategories: [],
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          }
+        );
+        console.log("Sync state updated to reflect r1.sh failure");
+      } catch (syncError) {
+        console.error("Error updating sync state after r1.sh failure:", syncError);
+        // Continue with error response even if sync state update fails
+      }
+      
       return res.status(500).json({
         status: false,
         message: "r1.sh script execution failed",
@@ -105,6 +131,32 @@ exports.runScripts = async (req, res) => {
       }
     } catch (error) {
       console.error("r2.sh failed:", error);
+      
+      // Update sync state to reflect script failure
+      try {
+        const SyncState = require("../../models/syncState.schema");
+        await SyncState.findOneAndUpdate(
+          { clientName },
+          {
+            $set: {
+              status: "failed",
+              currentStep: 1, // Reset to step 1 on failure
+              isRunningScripts: false, // Clear scripts running state
+              pipelineStatus: null,
+              selectedCategories: [],
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          }
+        );
+        console.log("Sync state updated to reflect r2.sh failure");
+      } catch (syncError) {
+        console.error("Error updating sync state after r2.sh failure:", syncError);
+        // Continue with error response even if sync state update fails
+      }
+      
       return res.status(500).json({
         status: false,
         message: "r2.sh script execution failed",
