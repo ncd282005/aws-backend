@@ -49,6 +49,7 @@ const {
 
 const { authenticateToken } = require("../../middleware/authenticate");
 const uploadCsvMulter = require("../../utils/multerCsvConfig");
+const uploadClientMulter = require("../../utils/multerClientConfig");
 
 // Public routes
 router.post("/login", adminController.loginAdmin);
@@ -93,6 +94,10 @@ router.post("/sync-state/reset", resetSyncState);
 
 // Client management routes (no authentication required for now)
 router.get("/clients", getAllClients);
-router.post("/clients", createClient);
+router.post(
+  "/clients",
+  uploadClientMulter.single("logo"),
+  createClient
+);
 
 module.exports = router;
