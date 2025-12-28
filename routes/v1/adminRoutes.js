@@ -61,41 +61,45 @@ router.get("/admin-dashboard", authenticateToken("admin"), adminDashboardControl
 
 router.post("/admin-logout", authenticateToken("admin"), adminLogoutController.logoutAdmin);
 
-// CSV Upload route (no authentication required)
+// CSV Upload route (requires authentication)
 router.post(
   "/upload-csv",
+  authenticateToken("admin"),
   uploadCsvMulter.single("csvFile"),
   uploadCsv
 );
 
-// JSON Config Upload route (no authentication required)
+// JSON Config Upload route (requires authentication)
 router.post(
   "/upload-json-config",
+  authenticateToken("admin"),
   uploadJsonConfig
 );
 
-router.get("/sync-errors", getSyncErrors);
-router.get("/pipeline-status", getPipelineStatus);
-router.get("/processed-products", getProcessedCategorySummary);
-router.post("/processed-products/details", getProcessedCategoryDetails);
-router.post("/run-scripts", runScripts);
-router.get("/gardenia-products", getGardeniaProducts);
-router.get("/active-products", getActiveProducts);
-router.post("/toggle-product-status", toggleProductStatus);
-router.post("/nudge-quality", runNudgeQuality);
-router.get("/nudge-quality/questionnaire", getQuestionnaire);
-router.put("/nudge-quality/questionnaire", updateQuestionnaire);
+// Protected routes - require authentication
+router.get("/sync-errors", authenticateToken("admin"), getSyncErrors);
+router.get("/pipeline-status", authenticateToken("admin"), getPipelineStatus);
+router.get("/processed-products", authenticateToken("admin"), getProcessedCategorySummary);
+router.post("/processed-products/details", authenticateToken("admin"), getProcessedCategoryDetails);
+router.post("/run-scripts", authenticateToken("admin"), runScripts);
+router.get("/gardenia-products", authenticateToken("admin"), getGardeniaProducts);
+router.get("/active-products", authenticateToken("admin"), getActiveProducts);
+router.post("/toggle-product-status", authenticateToken("admin"), toggleProductStatus);
+router.post("/nudge-quality", authenticateToken("admin"), runNudgeQuality);
+router.get("/nudge-quality/questionnaire", authenticateToken("admin"), getQuestionnaire);
+router.put("/nudge-quality/questionnaire", authenticateToken("admin"), updateQuestionnaire);
 
-// Sync state management routes
-router.get("/sync-state", getSyncState);
-router.post("/sync-state", saveSyncState);
-router.post("/sync-state/complete", completeSync);
-router.post("/sync-state/reset", resetSyncState);
+// Sync state management routes (requires authentication)
+router.get("/sync-state", authenticateToken("admin"), getSyncState);
+router.post("/sync-state", authenticateToken("admin"), saveSyncState);
+router.post("/sync-state/complete", authenticateToken("admin"), completeSync);
+router.post("/sync-state/reset", authenticateToken("admin"), resetSyncState);
 
-// Client management routes (no authentication required for now)
-router.get("/clients", getAllClients);
+// Client management routes (requires authentication)
+router.get("/clients", authenticateToken("admin"), getAllClients);
 router.post(
   "/clients",
+  authenticateToken("admin"),
   uploadClientMulter.single("logo"),
   createClient
 );
