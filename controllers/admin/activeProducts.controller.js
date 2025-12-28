@@ -1,6 +1,7 @@
 /* global process */
 const { exec } = require("child_process");
 const { promisify } = require("util");
+const fs = require("fs").promises;
 
 const execAsync = promisify(exec);
 
@@ -24,23 +25,27 @@ const runActiveProductScript = async (index) => {
 };
 
 /**
- * Parse script output to extract product IDs
- * Script returns product IDs one per line
- * @param {string} stdout - Script stdout
- * @returns {string[]} - Array of active product IDs
+ * Read product IDs from the processed_ids.txt file
+ * The script saves output to /var/www/html/vector_upsert/processed_ids.txt
+ * @returns {Promise<string[]>} - Array of active product IDs
  */
-const parseActiveProductIds = (stdout) => {
-  if (!stdout || typeof stdout !== "string") {
-    return [];
+const readActiveProductIdsFromFile = async () => {
+  const filePath = "/var/www/html/vector_upsert/processed_ids.txt";
+  
+  try {
+    const fileContent = await fs.readFile(filePath, "utf-8");
+    
+    // Split by newlines and filter out empty lines
+    const productIds = fileContent
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    
+    return productIds;
+  } catch (error) {
+    console.error("Error reading processed_ids.txt:", error);
+    throw new Error(`Failed to read product IDs from file: ${error.message}`);
   }
-
-  // Split by newlines and filter out empty lines
-  const productIds = stdout
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  return productIds;
 };
 
 /**
@@ -84,10 +89,20 @@ exports.getActiveProducts = async (req, res) => {
       });
     }
 
-    // Parse the output to get active product IDs
-    const activeProductIds = parseActiveProductIds(scriptResult.stdout);
-
-    console.log(`Found ${activeProductIds.length} active products`);
+    // Read the product IDs from the file created by the script
+    let activeProductIds;
+    try {
+      activeProductIds = await readActiveProductIdsFromFile();
+      console.log(`Found ${activeProductIds.length} active products`);
+    } catch (error) {
+      console.error("Error reading product IDs from file:", error);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to read product IDs from file",
+        error: error.message,
+        data: null,
+      });
+    }
 
     return res.status(200).json({
       status: true,
