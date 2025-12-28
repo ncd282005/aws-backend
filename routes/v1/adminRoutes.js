@@ -29,6 +29,9 @@ const {
   toggleProductStatus,
 } = require("../../controllers/admin/toggleProductStatus.controller");
 const {
+  getActiveProducts,
+} = require("../../controllers/admin/activeProducts.controller");
+const {
   getAllClients,
   createClient,
 } = require("../../controllers/admin/client.controller");
@@ -76,6 +79,7 @@ router.get("/processed-products", getProcessedCategorySummary);
 router.post("/processed-products/details", getProcessedCategoryDetails);
 router.post("/run-scripts", runScripts);
 router.get("/gardenia-products", getGardeniaProducts);
+router.get("/active-products", getActiveProducts);
 router.post("/toggle-product-status", toggleProductStatus);
 router.post("/nudge-quality", runNudgeQuality);
 router.get("/nudge-quality/questionnaire", getQuestionnaire);
