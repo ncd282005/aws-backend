@@ -15,6 +15,7 @@ const runR1Script = async (clientName, categories) => {
   const scriptPath = "/var/www/html/researcher1/r1.sh";
   const categoriesString = categories.map((cat) => `"${cat}"`).join(" ");
   const command = `bash ./r1.sh ${clientName} ${categoriesString}`;
+  console.log("command:", command);
   
   // Change to the script directory before executing
   const scriptDir = "/var/www/html/researcher1";
