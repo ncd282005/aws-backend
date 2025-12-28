@@ -93,7 +93,9 @@ exports.toggleProductStatus = async (req, res) => {
     }
 
     // Step 2: Generate orchestrator_config.json
-    const normalizedCategory = category.toLowerCase().replace(/\s+/g, '_');
+    const normalizedCategory = category;
+
+    console.log("normalizedCategory", normalizedCategory);
     
     const orchestratorConfig = {
       categories: {
