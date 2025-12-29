@@ -6,9 +6,9 @@ const {
 } = require("@aws-sdk/client-s3");
 const {
   s3Client,
+  PROCESSED_PRODUCTS_BUCKET_NAME,
   PROCESSED_PRODUCTS_BASE_PREFIX,
 } = require("../../config/s3Config");
-const { getBucketNameFromClient } = require("../../utils/bucketHelper");
 
 const streamToString = async (stream) => {
   if (!stream) {
@@ -28,7 +28,7 @@ const streamToString = async (stream) => {
 const sanitizePathSegment = (segment = "") =>
   segment.replace(/^\/*/, "").replace(/\/*$/, "");
 
-const listCategoryProductKeys = async (clientName, bucketName) => {
+const listCategoryProductKeys = async (clientName) => {
   const results = [];
   let continuationToken = undefined;
 
@@ -39,11 +39,10 @@ const listCategoryProductKeys = async (clientName, bucketName) => {
   console.log("prefix", prefix);
   console.log("normalizedClient", normalizedClient);
   console.log("basePrefix", basePrefix);
-  console.log("bucketName", bucketName);
 
   do {
     const command = new ListObjectsV2Command({
-      Bucket: bucketName,
+      Bucket: PROCESSED_PRODUCTS_BUCKET_NAME,
       Prefix: prefix,
       ContinuationToken: continuationToken,
     });
@@ -86,15 +85,15 @@ const listCategoryProductKeys = async (clientName, bucketName) => {
   return results;
 };
 
-const countProductsInCsv = async (key, bucketName) => {
+const countProductsInCsv = async (key) => {
   const command = new GetObjectCommand({
-    Bucket: bucketName,
+    Bucket: PROCESSED_PRODUCTS_BUCKET_NAME,
     Key: key,
   });
 
   console.log("command", command);
   console.log("key", key);
-  console.log("bucketName", bucketName);
+  console.log("PROCESSED_PRODUCTS_BUCKET_NAME", PROCESSED_PRODUCTS_BUCKET_NAME);
 
   const response = await s3Client.send(command);
   const payload = await streamToString(response.Body);
@@ -147,27 +146,8 @@ const parseCategoryProducts = (csvString) => {
 exports.getProcessedCategorySummary = async (req, res) => {
   try {
     const clientName = req.query.clientName;
-    if (!clientName || clientName.trim() === "") {
-      return res.status(400).json({
-        status: false,
-        message: "clientName is required in query parameters.",
-        data: null,
-      });
-    }
-
-    // Get bucket name from client
-    const bucketName = await getBucketNameFromClient(clientName);
-    if (!bucketName) {
-      return res.status(400).json({
-        status: false,
-        message: "Client not found or invalid client name",
-        data: null,
-      });
-    }
-
     console.log("clientName", clientName);
-    console.log("bucketName", bucketName);
-    const categoryObjects = await listCategoryProductKeys(clientName, bucketName);
+    const categoryObjects = await listCategoryProductKeys(clientName);
     console.log("categoryObjects", categoryObjects);
 
     if (categoryObjects.length === 0) {
@@ -180,7 +160,7 @@ exports.getProcessedCategorySummary = async (req, res) => {
 
     const categoryStats = await Promise.all(
       categoryObjects.map(async (categoryObj) => {
-        const totalProducts = await countProductsInCsv(categoryObj.key, bucketName);
+        const totalProducts = await countProductsInCsv(categoryObj.key);
         return {
           category: categoryObj.category,
           totalProducts,
@@ -211,28 +191,10 @@ exports.getProcessedCategoryDetails = async (req, res) => {
       ? req.body.categories
       : [];
 
-    if (!clientName || clientName.trim() === "") {
-      return res.status(400).json({
-        status: false,
-        message: "clientName is required",
-        data: null,
-      });
-    }
-
     if (categories.length === 0) {
       return res.status(400).json({
         status: false,
         message: "Please provide at least one category to fetch details",
-        data: null,
-      });
-    }
-
-    // Get bucket name from client
-    const bucketName = await getBucketNameFromClient(clientName);
-    if (!bucketName) {
-      return res.status(400).json({
-        status: false,
-        message: "Client not found or invalid client name",
         data: null,
       });
     }
@@ -246,11 +208,10 @@ exports.getProcessedCategoryDetails = async (req, res) => {
       const normalizedCategory = sanitizePathSegment(category);
       const key = `${basePrefix}/${normalizedClient}/categories/${normalizedCategory}/${normalizedCategory}.csv`;
       console.log("key", key);
-      console.log("bucketName", bucketName);
 
       try {
         const command = new GetObjectCommand({
-          Bucket: bucketName,
+          Bucket: PROCESSED_PRODUCTS_BUCKET_NAME,
           Key: key,
         });
         const response = await s3Client.send(command);

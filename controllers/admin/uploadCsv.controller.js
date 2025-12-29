@@ -1,10 +1,9 @@
 /* global process */
 const { PutObjectCommand } = require("@aws-sdk/client-s3");
-const { s3Client, S3_BUCKET_REGION } = require("../../config/s3Config");
+const { s3Client, S3_BUCKET_NAME } = require("../../config/s3Config");
 const path = require("path");
 const CsvUploadRecord = require("../../models/csvUploadRecord.schema");
 const SyncState = require("../../models/syncState.schema");
-const { getBucketNameFromClient } = require("../../utils/bucketHelper");
 
 /**
  * Upload CSV file to AWS S3
@@ -61,16 +60,6 @@ exports.uploadCsv = async (req, res) => {
       });
     }
 
-    // Get bucket name from client
-    const bucketName = await getBucketNameFromClient(clientName);
-    if (!bucketName) {
-      return res.status(400).json({
-        status: false,
-        message: "Client not found or invalid client name",
-        data: null,
-      });
-    }
-
     // Build S3 key based on requested folder structure
     const uploadDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
     const randomSuffix = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
@@ -95,7 +84,7 @@ exports.uploadCsv = async (req, res) => {
     }
 
     const uploadParams = {
-      Bucket: bucketName,
+      Bucket: "testdevopsetl",
       Key: s3Key,
       Body: fileBody,
       ContentType: req.file.mimetype || "text/csv",
@@ -109,7 +98,7 @@ exports.uploadCsv = async (req, res) => {
     await s3Client.send(command);
 
     // Construct S3 URL
-    const s3Url = `https://${bucketName}.s3.${S3_BUCKET_REGION || process.env.AWS_REGION || "us-east-1"}.amazonaws.com/${s3Key}`;
+    const s3Url = `https://testdevopsetl.s3.${process.env.AWS_REGION || "us-east-1"}.amazonaws.com/${s3Key}`;
 
     // Clean up local file if it exists (multer disk storage)
     if (req.file.path) {
@@ -233,17 +222,6 @@ exports.uploadJsonConfig = async (req, res) => {
         data: null,
       });
     }
-
-    // Get bucket name from client
-    const bucketName = await getBucketNameFromClient(clientName);
-    if (!bucketName) {
-      return res.status(400).json({
-        status: false,
-        message: "Client not found or invalid client name",
-        data: null,
-      });
-    }
-
     const { jsonConfig, fileName, uploadDate } = req.body;
 
     // Validate required fields
@@ -272,7 +250,7 @@ exports.uploadJsonConfig = async (req, res) => {
 
     // Upload to S3
     const uploadParams = {
-      Bucket: bucketName,
+      Bucket: S3_BUCKET_NAME,
       Key: s3Key,
       Body: jsonString,
       ContentType: "application/json",
@@ -285,7 +263,7 @@ exports.uploadJsonConfig = async (req, res) => {
     await s3Client.send(command);
 
     // Construct S3 URL
-    const s3Url = `https://${bucketName}.s3.${S3_BUCKET_REGION || process.env.AWS_REGION || "us-east-1"}.amazonaws.com/${s3Key}`;
+    const s3Url = `https://${S3_BUCKET_NAME}.s3.${process.env.AWS_REGION || "us-east-1"}.amazonaws.com/${s3Key}`;
 
     res.status(200).json({
       status: true,
