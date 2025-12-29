@@ -1,12 +1,6 @@
-/* global process */
-const { exec } = require("child_process");
-const { promisify } = require("util");
-const { HeadObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { s3Client } = require("../../config/s3Config");
-const fs = require("fs");
-const path = require("path");
-
-const execAsync = promisify(exec);
+const { runNudgeQualityScript } = require("../../utils/nudgeQualityHelper");
 
 /**
  * Helper function to convert stream to string
@@ -26,146 +20,6 @@ const streamToString = async (stream) => {
     stream.on("error", reject);
     stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
   });
-};
-
-/**
- * Run nudge quality script (deploy.sh) for a category
- * @param {string} clientName - Client name
- * @param {string} category - Category name
- * @returns {Promise<{stdout: string, stderr: string}>}
- */
-/**
- * Verify S3 file exists before running script
- * @param {string} clientName - Client name
- * @param {string} normalizedCategory - Normalized category name
- * @returns {Promise<boolean>}
- */
-const verifyS3FileExists = async (clientName, normalizedCategory) => {
-  try {
-    // Extract bucket and key from S3 path
-    const bucket = "researcher2";
-    const key = `${clientName}/${normalizedCategory}.jsonl`;
-    
-    console.log(`Verifying S3 file exists: s3://${bucket}/${key}`);
-    
-    const command = new HeadObjectCommand({
-      Bucket: bucket,
-      Key: key,
-    });
-    
-    await s3Client.send(command);
-    console.log(`S3 file verified: s3://${bucket}/${key}`);
-    return true;
-  } catch (error) {
-    if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
-      console.error(`S3 file not found: s3://researcher2/${clientName}/${normalizedCategory}.jsonl`);
-      return false;
-    }
-    console.error(`Error verifying S3 file:`, error);
-    // If we can't verify, still try to run the script (maybe it's a permissions issue)
-    return true;
-  }
-};
-
-const runNudgeQualityScript = async (clientName, category) => {
-  // Normalize category name for S3 path (replace spaces with underscores)
-  const normalizedCategory = category.replace(/\s+/g, "_");
-
-  console.log("normalizedCategory", normalizedCategory);
-  
-  const s3InputPath = `s3://researcher2/${clientName}/${normalizedCategory}.jsonl`;
-  const outputPath = `/var/www/html/qgen/output/questionnaire.json`;
-  
-  // Verify S3 file exists before running script
-  const fileExists = await verifyS3FileExists(clientName, normalizedCategory);
-  if (!fileExists) {
-    throw new Error(`S3 file does not exist: ${s3InputPath}. Please verify the file path and ensure the file has been uploaded.`);
-  }
-
-  // Download S3 file to a temporary local location
-  // The deploy.sh script uses [[ ! -e "$INPUT_PATH" ]] which only works for local files
-  const tempDir = "/tmp/qgen_inputs";
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-  }
-  
-  const tempFileName = `${clientName}_${normalizedCategory}_${Date.now()}.jsonl`;
-  const localInputPath = path.join(tempDir, tempFileName);
-  
-  console.log(`Downloading S3 file to local path: ${localInputPath}`);
-  
-  try {
-    // Download the file from S3
-    const bucket = "researcher2";
-    const key = `${clientName}/${normalizedCategory}.jsonl`;
-    
-    const getObjectCommand = new GetObjectCommand({
-      Bucket: bucket,
-      Key: key,
-    });
-    
-    const response = await s3Client.send(getObjectCommand);
-    const fileContent = await streamToString(response.Body);
-    
-    // Write to local file
-    fs.writeFileSync(localInputPath, fileContent, 'utf8');
-    console.log(`S3 file downloaded successfully to ${localInputPath}`);
-  } catch (error) {
-    console.error("Error downloading S3 file:", error);
-    throw new Error(`Failed to download S3 file: ${error.message}`);
-  }
-  
-  // Change to the script directory before executing
-  const scriptDir = "/var/www/html/qgen";
-  
-  // Ensure AWS credentials are available to the script (for any S3 operations in run.sh)
-  const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-  const awsRegion = process.env.AWS_REGION || "ap-south-1";
-  
-  if (!awsAccessKeyId || !awsSecretAccessKey) {
-    // Clean up temp file
-    if (fs.existsSync(localInputPath)) {
-      fs.unlinkSync(localInputPath);
-    }
-    throw new Error("AWS credentials are not configured. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.");
-  }
-  
-  // Build command with explicit AWS credential export
-  // Use the local file path instead of S3 path
-  const command = `export AWS_ACCESS_KEY_ID="${awsAccessKeyId}" && export AWS_SECRET_ACCESS_KEY="${awsSecretAccessKey}" && export AWS_DEFAULT_REGION="${awsRegion}" && export AWS_REGION="${awsRegion}" && bash ./deploy.sh ${localInputPath} ${outputPath}`;
-  
-  console.log(`Executing nudge quality script: bash ./deploy.sh ${localInputPath} ${outputPath} in ${scriptDir}`);
-  console.log(`AWS credentials configured for script execution`);
-  
-  try {
-    const result = await execAsync(command, {
-      cwd: scriptDir,
-      timeout: 3600000, // 1 hour timeout
-      env: {
-        ...process.env,
-        AWS_ACCESS_KEY_ID: awsAccessKeyId,
-        AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,
-        AWS_DEFAULT_REGION: awsRegion,
-        AWS_REGION: awsRegion,
-      },
-    });
-    
-    // Clean up temporary file after successful execution
-    if (fs.existsSync(localInputPath)) {
-      fs.unlinkSync(localInputPath);
-      console.log(`Cleaned up temporary file: ${localInputPath}`);
-    }
-    
-    return result;
-  } catch (error) {
-    // Clean up temporary file on error
-    if (fs.existsSync(localInputPath)) {
-      fs.unlinkSync(localInputPath);
-      console.log(`Cleaned up temporary file after error: ${localInputPath}`);
-    }
-    throw error;
-  }
 };
 
 /**
@@ -264,36 +118,64 @@ exports.getQuestionnaire = async (req, res) => {
       });
     }
 
-    // The questionnaire.json file is generated at /var/www/html/qgen/output/questionnaire.json
-    const questionnairePath = "/var/www/html/qgen/output/questionnaire.json";
+    // Normalize category name to match S3 key format (spaces to underscores)
+    // This matches how the nudge quality script stores the file
+    const normalizedCategory = category.replace(/\s+/g, "_");
 
-    console.log(`Reading questionnaire from: ${questionnairePath}`);
-
-    // Check if file exists
-    if (!fs.existsSync(questionnairePath)) {
-      return res.status(404).json({
-        status: false,
-        message: "Questionnaire file not found. Please run the nudge quality script first.",
-        data: null,
-      });
-    }
-
-    // Read and parse the JSON file
+    // The questionnaire.json file is stored in S3 bucket
+    // Read and parse the JSON file from S3
     try {
-      const fileContent = fs.readFileSync(questionnairePath, 'utf8');
-      const questionnaireData = JSON.parse(fileContent);
-
+      const command = new GetObjectCommand({
+        Bucket: "questiongenerationmprompt",
+        Key: `${clientName}/${normalizedCategory}.jsonl`,
+      });
+      console.log(`Fetching questionnaire from S3: s3://questiongenerationmprompt/${clientName}/${normalizedCategory}.jsonl`);
+      const response = await s3Client.send(command);
+      const questionnaireData = await streamToString(response.Body);
+      
+      if (!questionnaireData || questionnaireData.trim().length === 0) {
+        return res.status(404).json({
+          status: false,
+          message: "Questionnaire file is empty or not found",
+          data: null,
+        });
+      }
+      
+      const parsedQuestionnaireData = JSON.parse(questionnaireData);
+      console.log("Questionnaire data retrieved successfully");
       return res.status(200).json({
         status: true,
         message: "Questionnaire data retrieved successfully",
-        data: questionnaireData,
+        data: parsedQuestionnaireData,
       });
-    } catch (parseError) {
-      console.error("Error parsing questionnaire JSON:", parseError);
+    } catch (s3Error) {
+      // Check if it's a 404 (file not found)
+      if (s3Error.name === "NoSuchKey" || s3Error.$metadata?.httpStatusCode === 404) {
+        console.error(`Questionnaire file not found: s3://questiongenerationmprompt/${clientName}/${normalizedCategory}.jsonl`);
+        return res.status(404).json({
+          status: false,
+          message: `Nudge quality data not found for category "${category}". Please ensure r2.sh has completed successfully and nudge quality has been run.`,
+          data: null,
+        });
+      }
+      
+      // Check if it's a JSON parse error
+      if (s3Error instanceof SyntaxError) {
+        console.error("Error parsing questionnaire JSON:", s3Error);
+        return res.status(500).json({
+          status: false,
+          message: "Failed to parse questionnaire file",
+          error: s3Error.message,
+          data: null,
+        });
+      }
+      
+      // Other S3 errors
+      console.error("Error fetching questionnaire from S3:", s3Error);
       return res.status(500).json({
         status: false,
-        message: "Failed to parse questionnaire file",
-        error: parseError.message,
+        message: "Failed to fetch questionnaire file from S3",
+        error: s3Error.message,
         data: null,
       });
     }
@@ -302,6 +184,160 @@ exports.getQuestionnaire = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: "Unexpected error occurred while reading questionnaire",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      data: null,
+    });
+  }
+};
+
+/**
+ * Update questionnaire data in S3
+ * PUT /api/v1/admin/nudge-quality/questionnaire
+ * Body: { clientName: string, category: string, questionIndex: number, questionData: object }
+ */
+exports.updateQuestionnaire = async (req, res) => {
+  try {
+    const { clientName, category, questionIndex, questionData } = req.body;
+
+    // Validate input
+    if (!clientName || typeof clientName !== "string") {
+      return res.status(400).json({
+        status: false,
+        message: "Client name is required and must be a string",
+        data: null,
+      });
+    }
+
+    if (!category || typeof category !== "string") {
+      return res.status(400).json({
+        status: false,
+        message: "Category is required and must be a string",
+        data: null,
+      });
+    }
+
+    if (questionIndex === undefined || questionIndex === null || typeof questionIndex !== "number") {
+      return res.status(400).json({
+        status: false,
+        message: "Question index is required and must be a number",
+        data: null,
+      });
+    }
+
+    if (!questionData || typeof questionData !== "object") {
+      return res.status(400).json({
+        status: false,
+        message: "Question data is required and must be an object",
+        data: null,
+      });
+    }
+
+    // Normalize category name to match S3 key format (spaces to underscores)
+    const normalizedCategory = category.replace(/\s+/g, "_");
+    const s3Key = `${clientName}/${normalizedCategory}.jsonl`;
+    const bucketName = "questiongenerationmprompt";
+
+    try {
+      // First, fetch the existing questionnaire data
+      const getCommand = new GetObjectCommand({
+        Bucket: bucketName,
+        Key: s3Key,
+      });
+
+      console.log(`Fetching questionnaire from S3: s3://${bucketName}/${s3Key}`);
+      const getResponse = await s3Client.send(getCommand);
+      const existingData = await streamToString(getResponse.Body);
+
+      if (!existingData || existingData.trim().length === 0) {
+        return res.status(404).json({
+          status: false,
+          message: "Questionnaire file is empty or not found",
+          data: null,
+        });
+      }
+
+      // Parse the existing data
+      const questionnaire = JSON.parse(existingData);
+
+      // Validate question index
+      if (!questionnaire.questions || !Array.isArray(questionnaire.questions)) {
+        return res.status(400).json({
+          status: false,
+          message: "Invalid questionnaire format: questions array not found",
+          data: null,
+        });
+      }
+
+      if (questionIndex < 0 || questionIndex >= questionnaire.questions.length) {
+        return res.status(400).json({
+          status: false,
+          message: `Question index ${questionIndex} is out of range. Total questions: ${questionnaire.questions.length}`,
+          data: null,
+        });
+      }
+
+      // Update the specific question
+      questionnaire.questions[questionIndex] = {
+        ...questionnaire.questions[questionIndex],
+        ...questionData,
+      };
+
+      // Convert back to JSON string
+      const updatedData = JSON.stringify(questionnaire, null, 2);
+
+      // Upload the updated data back to S3
+      const putCommand = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: s3Key,
+        Body: updatedData,
+        ContentType: "application/json",
+      });
+
+      console.log(`Updating questionnaire in S3: s3://${bucketName}/${s3Key}`);
+      await s3Client.send(putCommand);
+
+      console.log("Questionnaire updated successfully");
+      return res.status(200).json({
+        status: true,
+        message: "Questionnaire updated successfully",
+        data: questionnaire.questions[questionIndex],
+      });
+    } catch (s3Error) {
+      // Check if it's a 404 (file not found)
+      if (s3Error.name === "NoSuchKey" || s3Error.$metadata?.httpStatusCode === 404) {
+        console.error(`Questionnaire file not found: s3://${bucketName}/${s3Key}`);
+        return res.status(404).json({
+          status: false,
+          message: `Questionnaire file not found for category "${category}"`,
+          data: null,
+        });
+      }
+
+      // Check if it's a JSON parse error
+      if (s3Error instanceof SyntaxError) {
+        console.error("Error parsing questionnaire JSON:", s3Error);
+        return res.status(500).json({
+          status: false,
+          message: "Failed to parse questionnaire file",
+          error: s3Error.message,
+          data: null,
+        });
+      }
+
+      // Other S3 errors
+      console.error("Error updating questionnaire in S3:", s3Error);
+      return res.status(500).json({
+        status: false,
+        message: "Failed to update questionnaire file in S3",
+        error: s3Error.message,
+        data: null,
+      });
+    }
+  } catch (error) {
+    console.error("Unexpected error in updateQuestionnaire controller:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Unexpected error occurred while updating questionnaire",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
       data: null,
     });

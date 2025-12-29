@@ -5,7 +5,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start:dev": "nodemon app.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "seed:admin": "node utils/seedSuperAdmin.js"
   },
   "keywords": [],
   "author": "",

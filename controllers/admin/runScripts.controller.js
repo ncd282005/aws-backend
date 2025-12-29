@@ -1,6 +1,7 @@
 /* global process */
 const { exec } = require("child_process");
 const { promisify } = require("util");
+const { runNudgeQualityForCategories } = require("../../utils/nudgeQualityHelper");
 
 const execAsync = promisify(exec);
 
@@ -14,6 +15,7 @@ const runR1Script = async (clientName, categories) => {
   const scriptPath = "/var/www/html/researcher1/r1.sh";
   const categoriesString = categories.map((cat) => `"${cat}"`).join(" ");
   const command = `bash ./r1.sh ${clientName} ${categoriesString}`;
+  console.log("command:", command);
   
   // Change to the script directory before executing
   const scriptDir = "/var/www/html/researcher1";
@@ -38,6 +40,22 @@ const runR2Script = async (clientName) => {
   return execAsync(command, {
     cwd: scriptDir,
     timeout: 3600000, // 1 hour timeout
+  });
+};
+
+/**
+ * Run clearfiles.sh script to clean up files when r2.sh fails
+ * @returns {Promise<{stdout: string, stderr: string}>}
+ */
+const runClearFilesScript = async () => {
+  const command = `bash ./clearfiles.sh`;
+  
+  // Change to the script directory before executing
+  const scriptDir = "/var/www/html/researcher1/r2";
+  
+  return execAsync(command, {
+    cwd: scriptDir,
+    timeout: 60000, // 1 minute timeout (should be quick)
   });
 };
 
@@ -82,6 +100,32 @@ exports.runScripts = async (req, res) => {
       }
     } catch (error) {
       console.error("r1.sh failed:", error);
+      
+      // Update sync state to reflect script failure
+      try {
+        const SyncState = require("../../models/syncState.schema");
+        await SyncState.findOneAndUpdate(
+          { clientName },
+          {
+            $set: {
+              status: "failed",
+              currentStep: 1, // Reset to step 1 on failure
+              isRunningScripts: false, // Clear scripts running state
+              pipelineStatus: null,
+              selectedCategories: [],
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          }
+        );
+        console.log("Sync state updated to reflect r1.sh failure");
+      } catch (syncError) {
+        console.error("Error updating sync state after r1.sh failure:", syncError);
+        // Continue with error response even if sync state update fails
+      }
+      
       return res.status(500).json({
         status: false,
         message: "r1.sh script execution failed",
@@ -104,6 +148,46 @@ exports.runScripts = async (req, res) => {
       }
     } catch (error) {
       console.error("r2.sh failed:", error);
+      
+      // Run clearfiles.sh when r2.sh fails
+      try {
+        console.log("r2.sh failed. Running clearfiles.sh to clean up...");
+        const clearFilesResult = await runClearFilesScript();
+        console.log("clearfiles.sh completed successfully");
+        console.log("clearfiles.sh stdout:", clearFilesResult.stdout);
+        if (clearFilesResult.stderr) {
+          console.log("clearfiles.sh stderr:", clearFilesResult.stderr);
+        }
+      } catch (clearFilesError) {
+        console.error("clearfiles.sh also failed:", clearFilesError);
+        // Continue with error response even if clearfiles.sh fails
+      }
+      
+      // Update sync state to reflect script failure
+      try {
+        const SyncState = require("../../models/syncState.schema");
+        await SyncState.findOneAndUpdate(
+          { clientName },
+          {
+            $set: {
+              status: "failed",
+              currentStep: 1, // Reset to step 1 on failure
+              isRunningScripts: false, // Clear scripts running state
+              pipelineStatus: null,
+              selectedCategories: [],
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          }
+        );
+        console.log("Sync state updated to reflect r2.sh failure");
+      } catch (syncError) {
+        console.error("Error updating sync state after r2.sh failure:", syncError);
+        // Continue with error response even if sync state update fails
+      }
+      
       return res.status(500).json({
         status: false,
         message: "r2.sh script execution failed",
@@ -113,6 +197,61 @@ exports.runScripts = async (req, res) => {
         r1Completed: true,
         data: null,
       });
+    }
+
+    // After r2.sh completes successfully, run nudge quality for all categories
+    let nudgeQualityResults = [];
+    try {
+      console.log("r2.sh completed successfully. Starting nudge quality for all categories...");
+      nudgeQualityResults = await runNudgeQualityForCategories(clientName, categories);
+      
+      const successCount = nudgeQualityResults.filter(r => r.success).length;
+      const failureCount = nudgeQualityResults.filter(r => !r.success).length;
+      
+      console.log(`Nudge quality completed: ${successCount} succeeded, ${failureCount} failed`);
+      
+      if (failureCount > 0) {
+        console.warn("Some categories failed nudge quality:", 
+          nudgeQualityResults.filter(r => !r.success).map(r => r.category).join(", ")
+        );
+      }
+    } catch (error) {
+      console.error("Error running nudge quality for categories:", error);
+      // Don't fail the entire request if nudge quality fails, but log it
+      nudgeQualityResults = [{
+        error: "Failed to run nudge quality for categories",
+        details: error.message,
+      }];
+    }
+
+    // Both scripts completed successfully - save completion date
+    try {
+      const SyncState = require("../../models/syncState.schema");
+      const now = new Date();
+      
+      await SyncState.findOneAndUpdate(
+        { clientName },
+        {
+          $set: {
+            status: "completed",
+            currentStep: 1, // Reset to step 1 after completion
+            lastSyncDate: now,
+            lastSyncCompletedAt: now,
+            // Clear intermediate state
+            pipelineStatus: null,
+            selectedCategories: [],
+            isRunningScripts: false, // Clear scripts running state
+          },
+        },
+        {
+          upsert: true,
+          new: true,
+        }
+      );
+      console.log("Sync completion date saved successfully");
+    } catch (syncError) {
+      console.error("Error saving sync completion date:", syncError);
+      // Don't fail the request if sync state save fails
     }
 
     // Both scripts completed successfully
@@ -127,6 +266,12 @@ exports.runScripts = async (req, res) => {
         r2: {
           stdout: r2Result.stdout,
           stderr: r2Result.stderr || "",
+        },
+        nudgeQuality: {
+          results: nudgeQualityResults,
+          totalCategories: categories.length,
+          successCount: nudgeQualityResults.filter(r => r.success).length,
+          failureCount: nudgeQualityResults.filter(r => !r.success).length,
         },
       },
     });

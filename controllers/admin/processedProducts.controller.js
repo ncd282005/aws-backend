@@ -91,6 +91,10 @@ const countProductsInCsv = async (key) => {
     Key: key,
   });
 
+  console.log("command", command);
+  console.log("key", key);
+  console.log("PROCESSED_PRODUCTS_BUCKET_NAME", PROCESSED_PRODUCTS_BUCKET_NAME);
+
   const response = await s3Client.send(command);
   const payload = await streamToString(response.Body);
 
@@ -98,16 +102,32 @@ const countProductsInCsv = async (key) => {
     return 0;
   }
 
-  const lines = payload
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+  // Parse CSV format using Papa.parse
+  try {
+    const result = Papa.parse(payload, {
+      header: true,
+      skipEmptyLines: true,
+    });
 
-  if (lines.length <= 1) {
+    if (result.errors && result.errors.length > 0) {
+      console.warn(`CSV parsing errors in ${key}:`, result.errors);
+    }
+
+    // Count data rows (excluding header)
+    // Papa.parse with header: true returns an array of objects, one per data row
+    const products = Array.isArray(result.data) ? result.data : [];
+    
+    // Filter out completely empty rows and count valid products
+    const productCount = products.filter((row) => {
+      // A row is valid if it has at least one non-empty value
+      return row && Object.values(row).some((value) => value != null && value !== "");
+    }).length;
+
+    return productCount;
+  } catch (error) {
+    console.error(`Error parsing CSV file ${key}:`, error);
     return 0;
   }
-
-  return lines.length - 1; // subtract header row
 };
 
 const parseCategoryProducts = (csvString) => {

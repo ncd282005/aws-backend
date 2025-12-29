@@ -3,6 +3,7 @@ const { PutObjectCommand } = require("@aws-sdk/client-s3");
 const { s3Client, S3_BUCKET_NAME } = require("../../config/s3Config");
 const path = require("path");
 const CsvUploadRecord = require("../../models/csvUploadRecord.schema");
+const SyncState = require("../../models/syncState.schema");
 
 /**
  * Upload CSV file to AWS S3
@@ -120,6 +121,35 @@ exports.uploadCsv = async (req, res) => {
         mimetype: req.file.mimetype,
       },
     });
+
+    // Save sync state - CSV uploaded, move to step 2
+    try {
+      await SyncState.findOneAndUpdate(
+        { clientName },
+        {
+          $set: {
+            currentStep: 2,
+            status: "in_progress",
+            csvFile: {
+              fileName: fileNameInBucket,
+              fileSize: req.file.size,
+              s3Url: s3Url,
+              s3Key: s3Key,
+              uploadDate: uploadDate,
+            },
+          },
+        },
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+      console.log("Sync state updated after CSV upload");
+    } catch (syncError) {
+      console.error("Error updating sync state after CSV upload:", syncError);
+      // Don't fail the request if sync state save fails
+    }
 
     res.status(200).json({
       status: true,
