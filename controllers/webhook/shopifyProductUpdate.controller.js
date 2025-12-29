@@ -2,6 +2,7 @@ const WebhookProduct = require("../../models/webhook/webhookProduct.schema");
 
 exports.productUpdate = async (req, res) => {
   try {
+    req.body["source_platform"] = "shopify";
     const productData = req.shopifyData || req.body;
     const { admin_graphql_api_id } = productData;
     if (!admin_graphql_api_id) {

@@ -2,6 +2,7 @@ const WebhookProduct = require("../../models/webhook/webhookProduct.schema");
 
 exports.productStore = async (req, res) => {
   try {
+    req.body["source_platform"] = "shopify";
     const product = new WebhookProduct(req.body); // 👈 store exactly as sent
     await product.save();
 
