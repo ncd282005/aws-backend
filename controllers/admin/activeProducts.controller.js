@@ -29,8 +29,8 @@ const runActiveProductScript = async (index) => {
  * The script saves output to /var/www/html/vector_upsert/processed_ids.txt
  * @returns {Promise<string[]>} - Array of active product IDs
  */
-const readActiveProductIdsFromFile = async () => {
-  const filePath = "/var/www/html/vector_upsert/processed_ids.txt";
+const readActiveProductIdsFromFile = async (index) => {
+  const filePath = `/var/www/html/vector_upsert/${index}-processed_ids.txt`;
   
   try {
     const fileContent = await fs.readFile(filePath, "utf-8");
@@ -92,7 +92,7 @@ exports.getActiveProducts = async (req, res) => {
     // Read the product IDs from the file created by the script
     let activeProductIds;
     try {
-      activeProductIds = await readActiveProductIdsFromFile();
+      activeProductIds = await readActiveProductIdsFromFile(index);
       console.log(`Found ${activeProductIds.length} active products`);
     } catch (error) {
       console.error("Error reading product IDs from file:", error);
