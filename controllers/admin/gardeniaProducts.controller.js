@@ -5,6 +5,7 @@ const {
 } = require("@aws-sdk/client-s3");
 const { s3Client } = require("../../config/s3Config");
 const Papa = require("papaparse");
+const { getBucketNameFromClient } = require("../../utils/bucketHelper");
 
 const streamToString = async (stream) => {
   if (!stream) {
@@ -52,7 +53,14 @@ const parseCSV = (csvContent) => {
  */
 const fetchUnprocessedProducts = async (clientName) => {
   const unprocessedProducts = [];
-  const unprocessedBucket = "testdevopsetl";
+  
+  // Get bucket name from client
+  const unprocessedBucket = await getBucketNameFromClient(clientName);
+  if (!unprocessedBucket) {
+    console.error(`Failed to get bucket name for client: ${clientName}`);
+    return { unprocessedProducts: [], errors: [{ file: 'bucket', error: 'Client not found or invalid client name' }] };
+  }
+  
   const errors = [];
   const prefix = `unprocesseddata/${clientName}/`;
 
@@ -157,12 +165,11 @@ const fetchUnprocessedProducts = async (clientName) => {
 };
 
 /**
- * Get all products from S3 bucket researcher2 (processed) and testdevopsetl (unprocessed)
+ * Get all products from S3 bucket (processed and unprocessed)
  * Reads all JSONL files and extracts product_id and category
  */
 exports.getGardeniaProducts = async (req, res) => {
   try {
-    const BUCKET_NAME = "researcher2";
     const clientName = req.query.clientName;
     if (!clientName || clientName.trim() === "") {
       return res.status(400).json({
@@ -171,6 +178,17 @@ exports.getGardeniaProducts = async (req, res) => {
         data: null,
       });
     }
+
+    // Get bucket name from client
+    const BUCKET_NAME = await getBucketNameFromClient(clientName);
+    if (!BUCKET_NAME) {
+      return res.status(400).json({
+        status: false,
+        message: "Client not found or invalid client name",
+        data: null,
+      });
+    }
+
     const PREFIX = `${clientName}/`;
     
     // List all JSONL files in the processed bucket
