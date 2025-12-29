@@ -44,6 +44,22 @@ const runR2Script = async (clientName) => {
 };
 
 /**
+ * Run clearfiles.sh script to clean up files when r2.sh fails
+ * @returns {Promise<{stdout: string, stderr: string}>}
+ */
+const runClearFilesScript = async () => {
+  const command = `bash ./clearfiles.sh`;
+  
+  // Change to the script directory before executing
+  const scriptDir = "/var/www/html/researcher1/r2";
+  
+  return execAsync(command, {
+    cwd: scriptDir,
+    timeout: 60000, // 1 minute timeout (should be quick)
+  });
+};
+
+/**
  * Controller to run r1.sh and r2.sh scripts sequentially
  * POST /api/v1/admin/run-scripts
  * Body: { clientName: string, categories: string[] }
@@ -132,6 +148,20 @@ exports.runScripts = async (req, res) => {
       }
     } catch (error) {
       console.error("r2.sh failed:", error);
+      
+      // Run clearfiles.sh when r2.sh fails
+      try {
+        console.log("r2.sh failed. Running clearfiles.sh to clean up...");
+        const clearFilesResult = await runClearFilesScript();
+        console.log("clearfiles.sh completed successfully");
+        console.log("clearfiles.sh stdout:", clearFilesResult.stdout);
+        if (clearFilesResult.stderr) {
+          console.log("clearfiles.sh stderr:", clearFilesResult.stderr);
+        }
+      } catch (clearFilesError) {
+        console.error("clearfiles.sh also failed:", clearFilesError);
+        // Continue with error response even if clearfiles.sh fails
+      }
       
       // Update sync state to reflect script failure
       try {
