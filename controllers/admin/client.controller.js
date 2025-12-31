@@ -3,7 +3,9 @@ const {
   CreateBucketCommand,
   PutObjectCommand,
   HeadBucketCommand,
+  GetObjectCommand,
 } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { s3Client, S3_BUCKET_REGION } = require("../../config/s3Config");
 
 /**
@@ -41,6 +43,57 @@ const extractDomainName = (domain) => {
 };
 
 /**
+ * Parse S3 URL to extract bucket and key
+ */
+const parseS3Url = (url) => {
+  if (!url) return null;
+  
+  try {
+    // Pattern: https://bucket.s3.region.amazonaws.com/key
+    // Extract bucket (everything between :// and .s3.)
+    const urlMatch = url.match(/https?:\/\/(.+?)\.s3\.([^\.]+)\.amazonaws\.com\/(.+)/);
+    if (urlMatch) {
+      return {
+        bucket: urlMatch[1],
+        region: urlMatch[2],
+        key: urlMatch[3],
+      };
+    }
+  } catch (error) {
+    console.error("Error parsing S3 URL:", error);
+  }
+  
+  return null;
+};
+
+/**
+ * Generate pre-signed URL for S3 object
+ */
+const generatePresignedUrl = async (logoUrl) => {
+  if (!logoUrl) return null;
+  
+  try {
+    const parsed = parseS3Url(logoUrl);
+    if (!parsed) {
+      console.warn(`Could not parse logoUrl: ${logoUrl}`);
+      return logoUrl; // Return original URL if parsing fails
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: parsed.bucket,
+      Key: parsed.key,
+    });
+
+    // Generate pre-signed URL that expires in 7 days
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 604800 }); // 7 days
+    return signedUrl;
+  } catch (error) {
+    console.error("Error generating pre-signed URL:", error);
+    return logoUrl; // Return original URL if pre-signed URL generation fails
+  }
+};
+
+/**
  * Get all clients
  */
 const getAllClients = async (req, res) => {
@@ -51,10 +104,21 @@ const getAllClients = async (req, res) => {
         "name displayName domain companyName contactName email mobile logoUrl s3BucketName createdAt"
       );
 
+    // Generate pre-signed URLs for all client logos
+    const clientsWithPresignedUrls = await Promise.all(
+      clients.map(async (client) => {
+        const clientObj = client.toObject();
+        if (clientObj.logoUrl) {
+          clientObj.logoUrl = await generatePresignedUrl(clientObj.logoUrl);
+        }
+        return clientObj;
+      })
+    );
+
     return res.status(200).json({
       status: true,
       message: "Clients fetched successfully",
-      data: clients,
+      data: clientsWithPresignedUrls,
     });
   } catch (error) {
     console.error("Error fetching clients:", error);
@@ -264,6 +328,12 @@ const createClient = async (req, res) => {
 
     await newClient.save();
 
+    // Generate pre-signed URL for logo if it exists
+    let presignedLogoUrl = null;
+    if (newClient.logoUrl) {
+      presignedLogoUrl = await generatePresignedUrl(newClient.logoUrl);
+    }
+
     return res.status(201).json({
       status: true,
       message: "Client created successfully",
@@ -276,7 +346,7 @@ const createClient = async (req, res) => {
         contactName: newClient.contactName,
         email: newClient.email,
         mobile: newClient.mobile,
-        logoUrl: newClient.logoUrl,
+        logoUrl: presignedLogoUrl || newClient.logoUrl,
         s3BucketName: newClient.s3BucketName,
         createdAt: newClient.createdAt,
       },
