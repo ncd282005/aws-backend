@@ -1,14 +1,22 @@
 const { S3Client } = require("@aws-sdk/client-s3");
 require("dotenv").config();
 
-// Initialize S3 client
-const s3Client = new S3Client({
+// Build S3 client configuration
+const s3ClientConfig = {
   region: process.env.AWS_REGION || "ap-south-1",
-  credentials: {
+};
+
+// Only add explicit credentials if they're provided
+// Otherwise, let AWS SDK use default credential chain (IAM roles on EC2, environment variables, etc.)
+if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+  s3ClientConfig.credentials = {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+  };
+}
+
+// Initialize S3 client
+const s3Client = new S3Client(s3ClientConfig);
 
 // S3 bucket configuration
 const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME || "testdevopsetl";
