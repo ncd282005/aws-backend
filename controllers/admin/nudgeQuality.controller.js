@@ -95,11 +95,11 @@ exports.runNudgeQuality = async (req, res) => {
 /**
  * Get questionnaire data from the generated JSON file
  * GET /api/v1/admin/nudge-quality/questionnaire
- * Query: { clientName: string, category: string }
+ * Query: { clientName: string, category: string, type?: string } (type: "MCQ" or "DYK", defaults to "MCQ")
  */
 exports.getQuestionnaire = async (req, res) => {
   try {
-    const { clientName, category } = req.query;
+    const { clientName, category, type = "MCQ" } = req.query;
 
     // Validate input
     if (!clientName || typeof clientName !== "string") {
@@ -118,30 +118,59 @@ exports.getQuestionnaire = async (req, res) => {
       });
     }
 
-    // Normalize category name to match S3 key format (spaces to underscores)
-    // This matches how the nudge quality script stores the file
-    const normalizedCategory = category.replace(/\s+/g, "_");
+    // Validate type
+    if (type !== "MCQ" && type !== "DYK") {
+      return res.status(400).json({
+        status: false,
+        message: "Type must be either 'MCQ' or 'DYK'",
+        data: null,
+      });
+    }
 
-    // The questionnaire.json file is stored in S3 bucket
+    let bucketName, s3Key;
+
+    if (type === "DYK") {
+      // DYK questions are stored in a fixed location
+      bucketName = "dykmpropmt";
+      s3Key = "dyk.json";
+    } else {
+      // MCQ questions are stored per client/category
+      const normalizedCategory = category.replace(/\s+/g, "_");
+      bucketName = "questiongenerationmprompt";
+      s3Key = `${clientName}/${normalizedCategory}.jsonl`;
+    }
+
     // Read and parse the JSON file from S3
     try {
       const command = new GetObjectCommand({
-        Bucket: "questiongenerationmprompt",
-        Key: `${clientName}/${normalizedCategory}.jsonl`,
+        Bucket: bucketName,
+        Key: s3Key,
       });
-      console.log(`Fetching questionnaire from S3: s3://questiongenerationmprompt/${clientName}/${normalizedCategory}.jsonl`);
+      console.log(`Fetching ${type} questionnaire from S3: s3://${bucketName}/${s3Key}`);
       const response = await s3Client.send(command);
       const questionnaireData = await streamToString(response.Body);
       
       if (!questionnaireData || questionnaireData.trim().length === 0) {
         return res.status(404).json({
           status: false,
-          message: "Questionnaire file is empty or not found",
+          message: `${type} questionnaire file is empty or not found`,
           data: null,
         });
       }
       
       const parsedQuestionnaireData = JSON.parse(questionnaireData);
+      
+      // For DYK, wrap the array in a questions-like structure for consistency
+      if (type === "DYK") {
+        return res.status(200).json({
+          status: true,
+          message: "DYK questionnaire data retrieved successfully",
+          data: {
+            questions: parsedQuestionnaireData,
+          },
+        });
+      }
+      
       console.log("Questionnaire data retrieved successfully");
       return res.status(200).json({
         status: true,
@@ -151,10 +180,10 @@ exports.getQuestionnaire = async (req, res) => {
     } catch (s3Error) {
       // Check if it's a 404 (file not found)
       if (s3Error.name === "NoSuchKey" || s3Error.$metadata?.httpStatusCode === 404) {
-        console.error(`Questionnaire file not found: s3://questiongenerationmprompt/${clientName}/${normalizedCategory}.jsonl`);
+        console.error(`Questionnaire file not found: s3://${bucketName}/${s3Key}`);
         return res.status(404).json({
           status: false,
-          message: `Nudge quality data not found for category "${category}". Please ensure r2.sh has completed successfully and nudge quality has been run.`,
+          message: `${type} nudge quality data not found. Please ensure the file exists at s3://${bucketName}/${s3Key}`,
           data: null,
         });
       }
@@ -193,11 +222,11 @@ exports.getQuestionnaire = async (req, res) => {
 /**
  * Update questionnaire data in S3
  * PUT /api/v1/admin/nudge-quality/questionnaire
- * Body: { clientName: string, category: string, questionIndex: number, questionData: object }
+ * Body: { clientName: string, category: string, questionIndex: number, questionData: object, type?: string } (type: "MCQ" or "DYK", defaults to "MCQ")
  */
 exports.updateQuestionnaire = async (req, res) => {
   try {
-    const { clientName, category, questionIndex, questionData } = req.body;
+    const { clientName, category, questionIndex, questionData, type = "MCQ" } = req.body;
 
     // Validate input
     if (!clientName || typeof clientName !== "string") {
@@ -212,6 +241,15 @@ exports.updateQuestionnaire = async (req, res) => {
       return res.status(400).json({
         status: false,
         message: "Category is required and must be a string",
+        data: null,
+      });
+    }
+
+    // Validate type
+    if (type !== "MCQ" && type !== "DYK") {
+      return res.status(400).json({
+        status: false,
+        message: "Type must be either 'MCQ' or 'DYK'",
         data: null,
       });
     }
@@ -232,10 +270,18 @@ exports.updateQuestionnaire = async (req, res) => {
       });
     }
 
-    // Normalize category name to match S3 key format (spaces to underscores)
-    const normalizedCategory = category.replace(/\s+/g, "_");
-    const s3Key = `${clientName}/${normalizedCategory}.jsonl`;
-    const bucketName = "questiongenerationmprompt";
+    let bucketName, s3Key;
+
+    if (type === "DYK") {
+      // DYK questions are stored in a fixed location
+      bucketName = "dykmpropmt";
+      s3Key = "dyk.json";
+    } else {
+      // MCQ questions are stored per client/category
+      const normalizedCategory = category.replace(/\s+/g, "_");
+      bucketName = "questiongenerationmprompt";
+      s3Key = `${clientName}/${normalizedCategory}.jsonl`;
+    }
 
     try {
       // First, fetch the existing questionnaire data
@@ -244,46 +290,70 @@ exports.updateQuestionnaire = async (req, res) => {
         Key: s3Key,
       });
 
-      console.log(`Fetching questionnaire from S3: s3://${bucketName}/${s3Key}`);
+      console.log(`Fetching ${type} questionnaire from S3: s3://${bucketName}/${s3Key}`);
       const getResponse = await s3Client.send(getCommand);
       const existingData = await streamToString(getResponse.Body);
 
       if (!existingData || existingData.trim().length === 0) {
         return res.status(404).json({
           status: false,
-          message: "Questionnaire file is empty or not found",
+          message: `${type} questionnaire file is empty or not found`,
           data: null,
         });
       }
 
       // Parse the existing data
-      const questionnaire = JSON.parse(existingData);
+      let questionnaire;
+      let questionsArray;
 
-      // Validate question index
-      if (!questionnaire.questions || !Array.isArray(questionnaire.questions)) {
-        return res.status(400).json({
-          status: false,
-          message: "Invalid questionnaire format: questions array not found",
-          data: null,
-        });
+      if (type === "DYK") {
+        // DYK is a direct array
+        questionsArray = JSON.parse(existingData);
+        if (!Array.isArray(questionsArray)) {
+          return res.status(400).json({
+            status: false,
+            message: "Invalid DYK questionnaire format: expected an array",
+            data: null,
+          });
+        }
+      } else {
+        // MCQ has a questions property
+        questionnaire = JSON.parse(existingData);
+        if (!questionnaire.questions || !Array.isArray(questionnaire.questions)) {
+          return res.status(400).json({
+            status: false,
+            message: "Invalid questionnaire format: questions array not found",
+            data: null,
+          });
+        }
+        questionsArray = questionnaire.questions;
       }
 
-      if (questionIndex < 0 || questionIndex >= questionnaire.questions.length) {
+      // Validate question index
+      if (questionIndex < 0 || questionIndex >= questionsArray.length) {
         return res.status(400).json({
           status: false,
-          message: `Question index ${questionIndex} is out of range. Total questions: ${questionnaire.questions.length}`,
+          message: `Question index ${questionIndex} is out of range. Total questions: ${questionsArray.length}`,
           data: null,
         });
       }
 
       // Update the specific question
-      questionnaire.questions[questionIndex] = {
-        ...questionnaire.questions[questionIndex],
+      questionsArray[questionIndex] = {
+        ...questionsArray[questionIndex],
         ...questionData,
       };
 
       // Convert back to JSON string
-      const updatedData = JSON.stringify(questionnaire, null, 2);
+      let updatedData;
+      if (type === "DYK") {
+        // DYK: save as direct array
+        updatedData = JSON.stringify(questionsArray, null, 2);
+      } else {
+        // MCQ: save with questions wrapper
+        questionnaire.questions = questionsArray;
+        updatedData = JSON.stringify(questionnaire, null, 2);
+      }
 
       // Upload the updated data back to S3
       const putCommand = new PutObjectCommand({
@@ -293,14 +363,14 @@ exports.updateQuestionnaire = async (req, res) => {
         ContentType: "application/json",
       });
 
-      console.log(`Updating questionnaire in S3: s3://${bucketName}/${s3Key}`);
+      console.log(`Updating ${type} questionnaire in S3: s3://${bucketName}/${s3Key}`);
       await s3Client.send(putCommand);
 
-      console.log("Questionnaire updated successfully");
+      console.log(`${type} questionnaire updated successfully`);
       return res.status(200).json({
         status: true,
-        message: "Questionnaire updated successfully",
-        data: questionnaire.questions[questionIndex],
+        message: `${type} questionnaire updated successfully`,
+        data: questionsArray[questionIndex],
       });
     } catch (s3Error) {
       // Check if it's a 404 (file not found)
@@ -308,7 +378,7 @@ exports.updateQuestionnaire = async (req, res) => {
         console.error(`Questionnaire file not found: s3://${bucketName}/${s3Key}`);
         return res.status(404).json({
           status: false,
-          message: `Questionnaire file not found for category "${category}"`,
+          message: `${type} questionnaire file not found at s3://${bucketName}/${s3Key}`,
           data: null,
         });
       }
