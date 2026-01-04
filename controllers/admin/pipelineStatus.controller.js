@@ -5,30 +5,40 @@ const normalizeStatus = (status = "") => status.toLowerCase();
 
 exports.getPipelineStatus = async (req, res) => {
   const clientName = req.query.clientName;
+  const runId = req.query.runId;
 
   try {
-    const latestStatus = await PipelineStatus.findOne({
+    // Build query - if runId is provided, filter by it, otherwise get latest
+    const query = {
       clientName: { $regex: new RegExp(`^${clientName}$`, "i") },
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+    };
 
-    if (!latestStatus) {
+    if (runId) {
+      query.runId = runId;
+    }
+
+    const status = runId
+      ? await PipelineStatus.findOne(query).lean()
+      : await PipelineStatus.findOne(query).sort({ updatedAt: -1 }).lean();
+
+    if (!status) {
       return res.status(404).json({
         status: false,
-        message: "No pipeline status found for the requested client",
+        message: runId
+          ? `No pipeline status found for client "${clientName}" with runId "${runId}"`
+          : "No pipeline status found for the requested client",
         data: null,
       });
     }
 
-    const statusValue = normalizeStatus(latestStatus.status);
+    const statusValue = normalizeStatus(status.status);
     const isSuccess = statusValue === "success";
     const isFailed = ["failed", "error"].includes(statusValue);
 
     return res.status(200).json({
       status: true,
       message: "Pipeline status fetched successfully",
-      data: latestStatus,
+      data: status,
       pipelineStatus: statusValue,
       isSuccess,
       isFailed,
@@ -43,4 +53,3 @@ exports.getPipelineStatus = async (req, res) => {
     });
   }
 };
-
