@@ -3,6 +3,7 @@ const { PutObjectCommand } = require("@aws-sdk/client-s3");
 const { s3Client, S3_BUCKET_NAME } = require("../../config/s3Config");
 const path = require("path");
 const CsvUploadRecord = require("../../models/csvUploadRecord.schema");
+const PipelineStatus = require("../../models/pipelineStatus.schema");
 const SyncState = require("../../models/syncState.schema");
 
 /**
@@ -121,6 +122,20 @@ exports.uploadCsv = async (req, res) => {
         mimetype: req.file.mimetype,
       },
     });
+
+    // Create initial pipeline status entry with pending status for this run
+    try {
+      await PipelineStatus.create({
+        clientName,
+        runId: versionLabel,
+        status: "pending",
+        message: "CSV uploaded, waiting for pipeline to start",
+      });
+      console.log(`Pipeline status created for runId: ${versionLabel}`);
+    } catch (pipelineError) {
+      console.error("Error creating pipeline status:", pipelineError);
+      // Don't fail the request if pipeline status creation fails
+    }
 
     // Save sync state - CSV uploaded, move to step 2
     try {
