@@ -14,10 +14,10 @@ const pipelineStatusSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    details: {
-      type: mongoose.Schema.Types.Mixed,
+    csvId: {
+      type: String,
     },
-    message: {
+    id: {
       type: String,
     },
   },

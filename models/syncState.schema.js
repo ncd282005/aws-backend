@@ -28,6 +28,10 @@ const syncStateSchema = new mongoose.Schema(
       s3Key: String,
       uploadDate: String,
     },
+    csvId: {
+      type: String,
+      trim: true,
+    },
     // Step 2 data
     fieldMappings: {
       type: mongoose.Schema.Types.Mixed,
