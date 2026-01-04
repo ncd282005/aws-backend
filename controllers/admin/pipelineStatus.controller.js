@@ -15,11 +15,12 @@ const sanitizePathSegment = (segment = "") =>
   segment.replace(/^\/*/, "").replace(/\/*$/, "");
 
 /**
- * Check if processed data exists in S3 for the given client
+ * Check if NEW processed data exists in S3 for the given client (created after pipeline start)
  * @param {string} clientName - Client name
- * @returns {Promise<boolean>} - True if processed data exists
+ * @param {Date} pipelineStartTime - When the pipeline status was created (CSV upload time)
+ * @returns {Promise<boolean>} - True if new processed data exists
  */
-const checkProcessedDataExists = async (clientName) => {
+const checkNewProcessedDataExists = async (clientName, pipelineStartTime) => {
   try {
     const normalizedClient = sanitizePathSegment(clientName);
     const basePrefix = sanitizePathSegment(PROCESSED_PRODUCTS_BASE_PREFIX);
@@ -28,11 +29,29 @@ const checkProcessedDataExists = async (clientName) => {
     const command = new ListObjectsV2Command({
       Bucket: PROCESSED_PRODUCTS_BUCKET_NAME,
       Prefix: prefix,
-      MaxKeys: 1, // We only need to check if any files exist
     });
 
     const response = await s3Client.send(command);
-    return (response.Contents && response.Contents.length > 0);
+    
+    if (!response.Contents || response.Contents.length === 0) {
+      return false;
+    }
+
+    // Check if any files were created/modified after the pipeline started
+    const pipelineStartTimestamp = new Date(pipelineStartTime).getTime();
+    
+    for (const file of response.Contents) {
+      if (file.LastModified) {
+        const fileTimestamp = new Date(file.LastModified).getTime();
+        // If any file was modified after pipeline start, processing is complete
+        if (fileTimestamp >= pipelineStartTimestamp) {
+          console.log(`Found new processed data file: ${file.Key}, modified at ${file.LastModified}, pipeline started at ${pipelineStartTime}`);
+          return true;
+        }
+      }
+    }
+
+    return false;
   } catch (error) {
     console.error(`Error checking processed data for ${clientName}:`, error);
     return false;
@@ -69,10 +88,13 @@ exports.getPipelineStatus = async (req, res) => {
 
     let statusValue = normalizeStatus(status.status);
     
-    // If status is pending, check if processed data exists in S3
+    // If status is pending, check if NEW processed data exists in S3 (created after CSV upload)
     if (statusValue === "pending") {
-      const hasProcessedData = await checkProcessedDataExists(clientName);
-      if (hasProcessedData) {
+      // Use createdAt timestamp from pipeline status (when CSV was uploaded)
+      const pipelineStartTime = status.createdAt || status.updatedAt;
+      const hasNewProcessedData = await checkNewProcessedDataExists(clientName, pipelineStartTime);
+      
+      if (hasNewProcessedData) {
         // Update pipeline status to success
         const updateQuery = { _id: status._id };
         await PipelineStatus.findOneAndUpdate(
