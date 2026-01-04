@@ -9,11 +9,6 @@ const pipelineStatusSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    runId: {
-      type: String,
-      required: true,
-      trim: true,
-    },
     status: {
       type: String,
       required: true,
@@ -31,7 +26,6 @@ const pipelineStatusSchema = new mongoose.Schema(
   }
 );
 
-pipelineStatusSchema.index({ clientName: 1, runId: 1 });
 pipelineStatusSchema.index({ clientName: 1, updatedAt: -1 });
 
 const analyticsDb = mongoose.connection.useDb(analyticsDbName, {
