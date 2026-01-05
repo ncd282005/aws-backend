@@ -14,9 +14,6 @@ const pipelineStatusSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    csvId: {
-      type: String,
-    },
     id: {
       type: String,
     },
