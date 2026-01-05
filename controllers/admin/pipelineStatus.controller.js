@@ -5,12 +5,10 @@ const normalizeStatus = (status = "") => status.toLowerCase();
 
 exports.getPipelineStatus = async (req, res) => {
   const clientName = req.query.clientName;
-  const csvId = req.query.csvId || null;
 
   try {
     const latestStatus = await PipelineStatus.findOne({
       clientName: { $regex: new RegExp(`^${clientName}$`, "i") },
-      csvId: { $regex: new RegExp(`^${csvId}$`, "i") },
     })
       .sort({ updatedAt: -1 })
       .lean();
@@ -18,7 +16,7 @@ exports.getPipelineStatus = async (req, res) => {
     if (!latestStatus) {
       return res.status(404).json({
         status: false,
-        message: "No pipeline status found for the requested client and csvId",
+        message: "No pipeline status found for the requested client",
         data: null,
       });
     }
