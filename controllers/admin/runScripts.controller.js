@@ -48,8 +48,8 @@ const runR2Script = async (clientName) => {
  * Run clearfiles.sh script to clean up files when r2.sh fails
  * @returns {Promise<{stdout: string, stderr: string}>}
  */
-const runClearFilesScript = async () => {
-  const command = `bash ./clearfiles.sh`;
+const runClearFilesScript = async (clientName) => {
+  const command = `bash ./clearfiles.sh ${clientName}`;
   
   // Change to the script directory before executing
   const scriptDir = "/var/www/html/researcher1/r2";
@@ -153,7 +153,7 @@ exports.runScripts = async (req, res) => {
       // Run clearfiles.sh when r2.sh fails
       try {
         console.log("r2.sh failed. Running clearfiles.sh to clean up...");
-        const clearFilesResult = await runClearFilesScript();
+        const clearFilesResult = await runClearFilesScript(clientName);
         console.log("clearfiles.sh completed successfully");
         console.log("clearfiles.sh stdout:", clearFilesResult.stdout);
         if (clearFilesResult.stderr) {
