@@ -163,9 +163,6 @@ const createS3Bucket = async (bucketName) => {
 
     // Sanitize bucket name (remove invalid characters, ensure it's lowercase)
     const sanitizedBucketName = bucketName
-      .toLowerCase()
-      .replace(/[^a-z0-9.-]/g, "")
-      .replace(/^[.-]+|[.-]+$/g, ""); // Remove leading/trailing dots and hyphens
 
     if (sanitizedBucketName !== bucketName) {
       console.warn(
