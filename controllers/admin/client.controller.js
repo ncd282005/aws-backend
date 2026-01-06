@@ -297,7 +297,7 @@ const createClient = async (req, res) => {
     let logoUrl = null;
     let finalBucketName = bucketDomain;
     try {
-      finalBucketName = await createS3Bucket(bucketDomain);
+      finalBucketName = await createS3Bucket(`${bucketDomain}_client`);
 
       // Upload logo if provided
       if (logoFile) {
