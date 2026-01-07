@@ -68,7 +68,7 @@ const executeVectorScript = async (configFileName = 'orchestrator_config.json') 
   
   return execAsync(command, {
     cwd: scriptDir,
-    timeout: 3600000, // 1 hour timeout (same as your other scripts)
+    timeout: 10000000, // 10 hour timeout (same as your other scripts)
   });
 };
 
