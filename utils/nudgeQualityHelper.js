@@ -79,7 +79,7 @@ const runNudgeQualityScript = async (clientName, category) => {
   try {
     const result = await execAsync(command, {
       cwd: scriptDir,
-      timeout: 3600000, // 1 hour timeout
+      timeout: 10000000, // 10 hour timeout
       env: {
         ...process.env,
         AWS_ACCESS_KEY_ID: awsAccessKeyId,
