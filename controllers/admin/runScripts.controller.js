@@ -22,7 +22,7 @@ const runR1Script = async (clientName, categories) => {
   
   return execAsync(command, {
     cwd: scriptDir,
-    timeout: 3600000, // 1 hour timeout
+    timeout: 10000000, // 10 hour timeout
   });
 };
 
@@ -40,7 +40,7 @@ const runR2Script = async (clientName) => {
   
   return execAsync(command, {
     cwd: scriptDir,
-    timeout: 3600000, // 1 hour timeout
+    timeout: 10000000, // 10 hour timeout
   });
 };
 
@@ -56,7 +56,7 @@ const runClearFilesScript = async (clientName) => {
   
   return execAsync(command, {
     cwd: scriptDir,
-    timeout: 60000, // 1 minute timeout (should be quick)
+    timeout: 10000000, // 10 hour timeout
   });
 };
 
@@ -121,7 +121,7 @@ exports.runScripts = async (req, res) => {
             new: true,
           }
         );
-        console.log("Sync state updated to reflect r1.sh failure");
+        console.log("Sync state updated to reflect r1.sh failure", error);
       } catch (syncError) {
         console.error("Error updating sync state after r1.sh failure:", syncError);
         // Continue with error response even if sync state update fails
