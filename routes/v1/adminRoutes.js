@@ -109,7 +109,10 @@ router.post(
   createClient
 );
 
-// Theme configuration routes (requires authentication)
+// Theme configuration routes
+// Public route for client-side script to fetch theme config by domain
+router.get("/public/theme-config", getThemeConfig);
+// Admin routes (require authentication)
 router.get("/theme-config", authenticateToken("admin"), getThemeConfig);
 router.post("/theme-config", authenticateToken("admin"), saveThemeConfig);
 router.post("/theme-config/reset", authenticateToken("admin"), resetThemeConfig);

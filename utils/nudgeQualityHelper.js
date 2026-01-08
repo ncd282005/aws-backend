@@ -46,7 +46,7 @@ const verifyS3FileExists = async (clientName, normalizedCategory) => {
  */
 const runNudgeQualityScript = async (clientName, category) => {
   // Normalize category name for S3 path (replace spaces with underscores)
-  const normalizedCategory = category.replace(/\s+/g, "_");
+  const normalizedCategory = category;
 
   console.log(`Running nudge quality for category: ${category} (normalized: ${normalizedCategory})`);
   
@@ -72,7 +72,7 @@ const runNudgeQualityScript = async (clientName, category) => {
   }
   
   // Build command with explicit AWS credential export
-  const command = `export AWS_ACCESS_KEY_ID="${awsAccessKeyId}" && export AWS_SECRET_ACCESS_KEY="${awsSecretAccessKey}" && export AWS_DEFAULT_REGION="${awsRegion}" && export AWS_REGION="${awsRegion}" && bash ./deploy.sh ${s3InputPath} ${outputPath}`;
+  const command = `export AWS_ACCESS_KEY_ID="${awsAccessKeyId}" && export AWS_SECRET_ACCESS_KEY="${awsSecretAccessKey}" && export AWS_DEFAULT_REGION="${awsRegion}" && export AWS_REGION="${awsRegion}" && bash ./deploy.sh ${s3InputPath} ${outputPath} ${normalizedCategory}`;
   
   console.log(`Executing nudge quality script: bash ./deploy.sh ${s3InputPath} ${outputPath} in ${scriptDir}`);
   
