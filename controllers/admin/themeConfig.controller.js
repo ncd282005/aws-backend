@@ -1,27 +1,74 @@
 const ThemeConfig = require("../../models/themeConfig.schema");
+const Client = require("../../models/client.schema");
+
+/**
+ * Extract client name from domain
+ * Example: www.google.com -> google_tech
+ */
+const extractClientNameFromDomain = (domain) => {
+  if (!domain) return null;
+
+  // Remove protocol if present
+  let cleanDomain = domain.replace(/^https?:\/\//, "");
+
+  // Remove trailing slash
+  cleanDomain = cleanDomain.replace(/\/$/, "");
+
+  // Extract just the domain (remove path if any)
+  const domainOnly = cleanDomain.split("/")[0];
+
+  // Split domain into parts
+  const domainParts = domainOnly.split(".");
+
+  // Extract the middle/second-level domain
+  // For www.google.com -> ['www', 'google', 'com'] -> 'google'
+  // For google.com -> ['google', 'com'] -> 'google'
+  // For shop.kesari.in -> ['shop', 'kesari', 'in'] -> 'kesari'
+  if (domainParts.length >= 2) {
+    // If 2 parts, return the first (e.g., google.com -> google)
+    // If 3+ parts, return the second (e.g., www.google.com -> google)
+    const middleDomain = domainParts.length === 2 ? domainParts[0] : domainParts[1];
+    return `${middleDomain.toLowerCase()}_tech`;
+  }
+
+  return null;
+};
 
 /**
  * Get theme configuration for a specific client
  */
 const getThemeConfig = async (req, res) => {
   try {
-    const { clientName } = req.query;
+    const { clientName, domain } = req.query;
 
-    if (!clientName) {
+    let finalClientName = null;
+
+    // If domain is provided, extract client name from it
+    if (domain) {
+      finalClientName = extractClientNameFromDomain(domain);
+      if (!finalClientName) {
+        return res.status(400).json({
+          status: false,
+          message: "Invalid domain format",
+        });
+      }
+    } else if (clientName) {
+      finalClientName = clientName.toLowerCase().trim();
+    } else {
       return res.status(400).json({
         status: false,
-        message: "Client name is required",
+        message: "Either clientName or domain is required",
       });
     }
 
     const themeConfig = await ThemeConfig.findOne({
-      clientName: clientName.toLowerCase().trim(),
+      clientName: finalClientName,
     });
 
     if (!themeConfig) {
       // Return default configuration if not found
       const defaultConfig = new ThemeConfig({
-        clientName: clientName.toLowerCase().trim(),
+        clientName: finalClientName,
       });
       return res.status(200).json({
         status: true,
