@@ -46,6 +46,11 @@ const {
   completeSync,
   resetSyncState,
 } = require("../../controllers/admin/syncState.controller");
+const {
+  getThemeConfig,
+  saveThemeConfig,
+  resetThemeConfig,
+} = require("../../controllers/admin/themeConfig.controller");
 
 const { authenticateToken } = require("../../middleware/authenticate");
 const uploadCsvMulter = require("../../utils/multerCsvConfig");
@@ -103,5 +108,10 @@ router.post(
   uploadClientMulter.single("logo"),
   createClient
 );
+
+// Theme configuration routes (requires authentication)
+router.get("/theme-config", authenticateToken("admin"), getThemeConfig);
+router.post("/theme-config", authenticateToken("admin"), saveThemeConfig);
+router.post("/theme-config/reset", authenticateToken("admin"), resetThemeConfig);
 
 module.exports = router;
