@@ -118,8 +118,6 @@ const saveThemeConfig = async (req, res) => {
       fontFamily,
       faqFontSize,
       optionButtonFontSize,
-      selectedOptionButtonColor,
-      selectedOptionButtonFontColor,
     } = req.body;
 
     const updateData = {
@@ -131,8 +129,6 @@ const saveThemeConfig = async (req, res) => {
       fontFamily,
       faqFontSize,
       optionButtonFontSize,
-      selectedOptionButtonColor,
-      selectedOptionButtonFontColor,
     };
 
     // Remove undefined values
@@ -187,15 +183,13 @@ const resetThemeConfig = async (req, res) => {
     // Create default configuration
     const defaultConfig = {
       nudgeTheme: "dark",
-      cardTopLeftRadius: "20px",
-      cardTopRightRadius: "20px",
-      cardBottomLeftRadius: "20px",
-      cardBottomRightRadius: "20px",
+      cardTopLeftRadius: "rounded",
+      cardTopRightRadius: "rounded",
+      cardBottomLeftRadius: "rounded",
+      cardBottomRightRadius: "rounded",
       fontFamily: "Arial",
-      faqFontSize: "14px",
-      optionButtonFontSize: "12px",
-      selectedOptionButtonColor: "#EEEEEE",
-      selectedOptionButtonFontColor: "#1F2937",
+      faqFontSize: "medium",
+      optionButtonFontSize: "medium",
     };
 
     const themeConfig = await ThemeConfig.findOneAndUpdate(
