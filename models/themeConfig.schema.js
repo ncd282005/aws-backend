@@ -12,7 +12,7 @@ const themeConfigSchema = new Schema(
     },
     nudgeTheme: {
       type: String,
-      enum: ["dark", "light"],
+      enum: ["dark", "light", "grey", "gray"],
       default: "dark",
     },
     cardTopLeftRadius: {
