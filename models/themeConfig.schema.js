@@ -17,19 +17,23 @@ const themeConfigSchema = new Schema(
     },
     cardTopLeftRadius: {
       type: String,
-      default: "20px",
+      enum: ["none", "small", "normal", "rounded", "wide"],
+      default: "rounded",
     },
     cardTopRightRadius: {
       type: String,
-      default: "20px",
+      enum: ["none", "small", "normal", "rounded", "wide"],
+      default: "rounded",
     },
     cardBottomLeftRadius: {
       type: String,
-      default: "20px",
+      enum: ["none", "small", "normal", "rounded", "wide"],
+      default: "rounded",
     },
     cardBottomRightRadius: {
       type: String,
-      default: "20px",
+      enum: ["none", "small", "normal", "rounded", "wide"],
+      default: "rounded",
     },
     fontFamily: {
       type: String,
@@ -37,19 +41,13 @@ const themeConfigSchema = new Schema(
     },
     faqFontSize: {
       type: String,
-      default: "14px",
+      enum: ["small", "medium", "large", "xlarge"],
+      default: "medium",
     },
     optionButtonFontSize: {
       type: String,
-      default: "12px",
-    },
-    selectedOptionButtonColor: {
-      type: String,
-      default: "#EEEEEE",
-    },
-    selectedOptionButtonFontColor: {
-      type: String,
-      default: "#1F2937",
+      enum: ["small", "medium", "large", "xlarge"],
+      default: "medium",
     },
   },
   { timestamps: true }
