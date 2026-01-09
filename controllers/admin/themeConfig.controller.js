@@ -191,7 +191,7 @@ const resetThemeConfig = async (req, res) => {
       cardTopRightRadius: "20px",
       cardBottomLeftRadius: "20px",
       cardBottomRightRadius: "20px",
-      fontFamily: "Inter",
+      fontFamily: "Arial",
       faqFontSize: "14px",
       optionButtonFontSize: "12px",
       selectedOptionButtonColor: "#EEEEEE",

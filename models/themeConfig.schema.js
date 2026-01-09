@@ -33,7 +33,7 @@ const themeConfigSchema = new Schema(
     },
     fontFamily: {
       type: String,
-      default: "Inter",
+      default: "Arial",
     },
     faqFontSize: {
       type: String,
