@@ -137,7 +137,7 @@ exports.getQuestionnaire = async (req, res) => {
       // MCQ questions are stored per client/category
       const normalizedCategory = category.replace(/\s+/g, "_");
       bucketName = "questiongenerationmprompt";
-      s3Key = `${clientName}/${normalizedCategory}.jsonl`;
+      s3Key = `${clientName}/${normalizedCategory}.jsonl/questionnaire.json`;
     }
 
     // Read and parse the JSON file from S3
@@ -280,7 +280,7 @@ exports.updateQuestionnaire = async (req, res) => {
       // MCQ questions are stored per client/category
       const normalizedCategory = category.replace(/\s+/g, "_");
       bucketName = "questiongenerationmprompt";
-      s3Key = `${clientName}/${normalizedCategory}.jsonl`;
+      s3Key = `${clientName}/${normalizedCategory}.jsonl/questionnaire.json`;
     }
 
     try {
