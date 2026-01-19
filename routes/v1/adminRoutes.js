@@ -51,6 +51,7 @@ const {
   saveThemeConfig,
   resetThemeConfig,
 } = require("../../controllers/admin/themeConfig.controller");
+const journeyDashboardController = require("../../controllers/admin/journeyDashboard.controller");
 
 const { authenticateToken } = require("../../middleware/authenticate");
 const uploadCsvMulter = require("../../utils/multerCsvConfig");
@@ -63,6 +64,13 @@ router.post("/analytics-login", analyticsAdminLoginController.loginAnalyticsAdmi
 
 // Admin dashboard route
 router.get("/admin-dashboard", authenticateToken("admin"), adminDashboardController.getAdminDashboard);
+
+// Journey dashboard charts (S3 CSV-backed)
+router.get(
+  "/journey-dashboard",
+  authenticateToken("admin"),
+  journeyDashboardController.getJourneyDashboard
+);
 
 router.post("/admin-logout", authenticateToken("admin"), adminLogoutController.logoutAdmin);
 
