@@ -4,7 +4,7 @@ const { GetObjectCommand } = require("@aws-sdk/client-s3");
 const { s3Client } = require("../../config/s3Config");
 
 const DEFAULT_BUCKET = process.env.DASHBOARD_DATA_BUCKET || "mongodatamprompt";
-const DEFAULT_PREFIX = process.env.DASHBOARD_DATA_PREFIX || "dashboard_data/kesari";
+const DEFAULT_PREFIX = process.env.DASHBOARD_DATA_PREFIX || "dashboard_data/csv";
 
 const streamToString = async (stream) => {
   if (!stream) return "";
