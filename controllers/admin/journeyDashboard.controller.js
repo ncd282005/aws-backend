@@ -148,6 +148,7 @@ exports.getJourneyDashboard = async (req, res) => {
       if (!trimmed) return null;
       
       const parts = trimmed.split("-");
+      console.log("parts", parts);
       // Format: DD-MM-YY (e.g., "17-01-26", "27-12-25")
       if (parts.length === 3) {
         const month = String(parts[1]).padStart(2, "0");
