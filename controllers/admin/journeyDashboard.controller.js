@@ -140,14 +140,17 @@ exports.getJourneyDashboard = async (req, res) => {
     // Chart 2 (Engagement Trend): aggregate by month from new format
     // New format: date, category, device_category, total_users, not_exposed_users, exposed_users, engaged_users
     // segment1=Not Exposed (red), segment2=Engaged (dark blue), segment3=Exposed (light grey)
-    // Extract month from date (format: DD-MM-YY or DD-MM-YYYY)
+    // Extract month from date (format: DD-MM-YY, e.g., "17-01-26" -> "01-2026")
     const extractMonth = (dateStr) => {
       if (!dateStr) return null;
-      const parts = dateStr.split("-");
-      if (parts.length >= 2) {
+      const trimmed = String(dateStr).trim();
+      const parts = trimmed.split("-");
+      // Format: DD-MM-YY (e.g., "17-01-26")
+      if (parts.length === 3) {
+        const day = parts[0];
         const month = parts[1].padStart(2, "0");
-        const year = parts[2] || parts[parts.length - 1];
-        // Convert 2-digit year to 4-digit if needed
+        const year = parts[2];
+        // Convert 2-digit year to 4-digit (e.g., "26" -> "2026")
         const fullYear = year.length === 2 ? `20${year}` : year;
         return `${month}-${fullYear}`;
       }
