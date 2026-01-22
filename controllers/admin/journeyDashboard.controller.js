@@ -278,11 +278,11 @@ exports.getJourneyDashboard = async (req, res) => {
       const deviceData = deviceDistributionMap.get(deviceName);
       
       // Match status to the expected keys (case-insensitive)
-      if (status.toLowerCase().includes("engaged") && !status.toLowerCase().includes("exposed")) {
+      if (status.toLowerCase().includes("engaged")) {
         deviceData.engagedCount += userCount;
       } else if (status.toLowerCase().includes("exposed")) {
         deviceData.exposedCount += userCount;
-      } else if (status.toLowerCase().includes("not exposed") || status.toLowerCase().includes("notexposed")) {
+      } else if (status.toLowerCase().includes("not exposed")) {
         deviceData.notExposedCount += userCount;
       }
     });
