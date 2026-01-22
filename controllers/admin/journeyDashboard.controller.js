@@ -3,9 +3,8 @@ const Papa = require("papaparse");
 const { GetObjectCommand } = require("@aws-sdk/client-s3");
 const { s3Client } = require("../../config/s3Config");
 
-const DEFAULT_BUCKET = process.env.DASHBOARD_DATA_BUCKET || "mongodatamprompt";
-const DEFAULT_PREFIX = process.env.DASHBOARD_DATA_PREFIX || "dashboard_data/csv";
-const DEFAULT_PREFIX2 = "dashboard_data/kesari";
+const DEFAULT_BUCKET = "mongodatamprompt";
+const DEFAULT_PREFIX = "dashboard_data/kesari";
 
 const streamToString = async (stream) => {
   if (!stream) return "";
@@ -83,14 +82,13 @@ exports.getJourneyDashboard = async (req, res) => {
     const bucket = String(req.query.bucket || DEFAULT_BUCKET).trim() || DEFAULT_BUCKET;
 
     const prefix = `${DEFAULT_PREFIX}/${window}`;
-    const prefix2 = `${DEFAULT_PREFIX2}/${window}`;
     const keys = {
-      overview: `${prefix2}/chart1_user_journey_performance.csv`,
-      engagementTrend: `${prefix}/chart_2_engagement_trend.csv`,
-      conversionTrend: `${prefix}/chart_3_conversion_trend.csv`,
-      timeSpentTrend: `${prefix}/chart_4_time_spent_trend.csv`,
-      deviceDistribution: `${prefix}/chart_5_device_distribution.csv`,
-      browserDistribution: `${prefix}/chart_6_browser_distribution.csv`,
+      overview: `${prefix}/chart1_user_journey_performance.csv`,
+      engagementTrend: `${prefix}/chart2_engagement_funnel.csv`,
+      conversionTrend: `${prefix}/chart3_atc_attribution.csv`,
+      timeSpentTrend: `${prefix}/chart4_time_spent_analysis.csv`,
+      deviceDistribution: `${prefix}/chart5_device_distribution.csv`,
+      browserDistribution: `${prefix}/chart6_browser_tech_radar.csv`,
     };
 
     const [
