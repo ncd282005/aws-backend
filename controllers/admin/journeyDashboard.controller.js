@@ -200,6 +200,17 @@ exports.getJourneyDashboard = async (req, res) => {
       return a.month.localeCompare(b.month);
     });
 
+    // Calculate total engagement stats for stat cards
+    const engagementStats = engagementTrend.reduce(
+      (acc, item) => {
+        acc.notExposed += item.segment1 || 0;
+        acc.exposed += item.segment3 || 0;
+        acc.engaged += item.segment2 || 0;
+        return acc;
+      },
+      { notExposed: 0, exposed: 0, engaged: 0 }
+    );
+
     // Chart 3 (Conversion Trend): aggregate by month from new format
     // New format: date, category, device_category, atc_not_exposed, atc_total_exposed, atc_engaged, ...
     // cart=Not Exposed ATC (red), purchase=Exposed ATC (light grey), impact=Engaged ATC (dark blue)
@@ -412,6 +423,7 @@ exports.getJourneyDashboard = async (req, res) => {
         },
         journey,
         engagementTrend,
+        engagementStats,
         conversionTrend,
         timeSpentTrend,
         deviceDistribution,
