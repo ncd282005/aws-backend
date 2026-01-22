@@ -137,26 +137,43 @@ exports.getJourneyDashboard = async (req, res) => {
       ],
     };
 
-    // Chart 2 (Engagement Trend): aggregate by date from new format
+    // Chart 2 (Engagement Trend): aggregate by month from new format
     // New format: date, category, device_category, total_users, not_exposed_users, exposed_users, engaged_users
     // segment1=Not Exposed (red), segment2=Engaged (dark blue), segment3=Exposed (light grey)
+    // Extract month from date (format: DD-MM-YY or DD-MM-YYYY)
+    const extractMonth = (dateStr) => {
+      if (!dateStr) return null;
+      const parts = dateStr.split("-");
+      if (parts.length >= 2) {
+        const month = parts[1].padStart(2, "0");
+        const year = parts[2] || parts[parts.length - 1];
+        // Convert 2-digit year to 4-digit if needed
+        const fullYear = year.length === 2 ? `20${year}` : year;
+        return `${month}-${fullYear}`;
+      }
+      return null;
+    };
+
     const engagementTrendMap = new Map();
     (engagementRows || []).forEach((row) => {
       const date = String(row.date || "").trim();
       if (!date) return;
 
+      const monthKey = extractMonth(date);
+      if (!monthKey) return;
+
       const notExposed = toNumber(row.not_exposed_users ?? row["not_exposed_users"]);
       const exposed = toNumber(row.exposed_users ?? row["exposed_users"]);
       const engaged = toNumber(row.engaged_users ?? row["engaged_users"]);
 
-      if (engagementTrendMap.has(date)) {
-        const existing = engagementTrendMap.get(date);
+      if (engagementTrendMap.has(monthKey)) {
+        const existing = engagementTrendMap.get(monthKey);
         existing.segment1 += notExposed;
         existing.segment2 += engaged;
         existing.segment3 += exposed;
       } else {
-        engagementTrendMap.set(date, {
-          month: date,
+        engagementTrendMap.set(monthKey, {
+          month: monthKey,
           segment1: notExposed,
           segment2: engaged,
           segment3: exposed,
@@ -164,7 +181,7 @@ exports.getJourneyDashboard = async (req, res) => {
       }
     });
     const engagementTrend = Array.from(engagementTrendMap.values()).sort((a, b) => {
-      // Sort by date (assuming format like DD-MM-YY or similar)
+      // Sort by month (format: MM-YYYY)
       return a.month.localeCompare(b.month);
     });
 
