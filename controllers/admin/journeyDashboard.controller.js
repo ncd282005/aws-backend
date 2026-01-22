@@ -140,17 +140,19 @@ exports.getJourneyDashboard = async (req, res) => {
     // Chart 2 (Engagement Trend): aggregate by month from new format
     // New format: date, category, device_category, total_users, not_exposed_users, exposed_users, engaged_users
     // segment1=Not Exposed (red), segment2=Engaged (dark blue), segment3=Exposed (light grey)
-    // Extract month from date (format: DD-MM-YY, e.g., "17-01-26" -> "01-2026")
+    // Extract month from date (format: DD-MM-YY, e.g., "17-01-26" -> "01-2026", "27-12-25" -> "12-2025")
     const extractMonth = (dateStr) => {
       if (!dateStr) return null;
+      // Convert to string and trim, handle cases where it might be a number or other type
       const trimmed = String(dateStr).trim();
+      if (!trimmed) return null;
+      
       const parts = trimmed.split("-");
-      // Format: DD-MM-YY (e.g., "17-01-26")
+      // Format: DD-MM-YY (e.g., "17-01-26", "27-12-25")
       if (parts.length === 3) {
-        const day = parts[0];
-        const month = parts[1].padStart(2, "0");
-        const year = parts[2];
-        // Convert 2-digit year to 4-digit (e.g., "26" -> "2026")
+        const month = String(parts[1]).padStart(2, "0");
+        const year = String(parts[2]);
+        // Convert 2-digit year to 4-digit (e.g., "26" -> "2026", "25" -> "2025")
         const fullYear = year.length === 2 ? `20${year}` : year;
         return `${month}-${fullYear}`;
       }
@@ -159,11 +161,15 @@ exports.getJourneyDashboard = async (req, res) => {
 
     const engagementTrendMap = new Map();
     (engagementRows || []).forEach((row) => {
-      const date = String(row.date || "").trim();
+      // Handle different possible field names for date
+      const date = String(row.date || row["date"] || "").trim();
       if (!date) return;
 
       const monthKey = extractMonth(date);
-      if (!monthKey) return;
+      if (!monthKey) {
+        console.warn(`Failed to extract month from date: ${date}`);
+        return;
+      }
 
       const notExposed = toNumber(row.not_exposed_users ?? row["not_exposed_users"]);
       const exposed = toNumber(row.exposed_users ?? row["exposed_users"]);
