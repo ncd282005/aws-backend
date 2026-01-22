@@ -168,57 +168,176 @@ exports.getJourneyDashboard = async (req, res) => {
       return a.month.localeCompare(b.month);
     });
 
-    // Chart 3 (Conversion Trend): map to existing keys { month, cart, purchase, impact }
+    // Chart 3 (Conversion Trend): aggregate by date from new format
+    // New format: date, category, device_category, atc_not_exposed, atc_total_exposed, atc_engaged, ...
     // cart=Not Exposed ATC (red), purchase=Exposed ATC (light grey), impact=Engaged ATC (dark blue)
-    const conversionTrend = (conversionRows || []).map((row) => ({
-      month: String(row.date || "").trim(),
-      cart: toNumber(row["Not Exposed ATC"]),
-      purchase: toNumber(row["Exposed ATC"]),
-      impact: toNumber(row["Engaged ATC"]),
-    }));
+    const conversionTrendMap = new Map();
+    (conversionRows || []).forEach((row) => {
+      const date = String(row.date || "").trim();
+      if (!date) return;
 
-    // Chart 4 (Time Spent Trend): existing UI expects { month, notExposed, exposed, engaged }
-    const timeSpentTrend = (timeSpentRows || []).map((row) => ({
-      month: String(row.date || "").trim(),
-      engaged: toNumber(row["Engaged"]),
-      exposed: toNumber(row["Exposed"]),
-      notExposed: toNumber(row["Not Exposed"]),
-    }));
+      const atcNotExposed = toNumber(row.atc_not_exposed ?? row["atc_not_exposed"]);
+      const atcExposed = toNumber(row.atc_total_exposed ?? row["atc_total_exposed"]);
+      const atcEngaged = toNumber(row.atc_engaged ?? row["atc_engaged"]);
 
-    // Chart 5 (Device Distribution): existing UI expects percentages 0-100 for engaged/exposed/notExposed.
-    // CSV provides counts; we return both % and raw counts for tooltips/labels.
-    const deviceDistribution = (deviceRows || []).map((row) => {
-      const engagedCount = toNumber(row["Engaged"]);
-      const exposedCount = toNumber(row["Exposed"]);
-      const notExposedCount = toNumber(row["Not Exposed"]);
-      const pct = toPercentTriplet(engagedCount, exposedCount, notExposedCount);
+      if (conversionTrendMap.has(date)) {
+        const existing = conversionTrendMap.get(date);
+        existing.cart += atcNotExposed;
+        existing.purchase += atcExposed;
+        existing.impact += atcEngaged;
+      } else {
+        conversionTrendMap.set(date, {
+          month: date,
+          cart: atcNotExposed,
+          purchase: atcExposed,
+          impact: atcEngaged,
+        });
+      }
+    });
+    const conversionTrend = Array.from(conversionTrendMap.values()).sort((a, b) => {
+      // Sort by date (assuming format like DD-MM-YY or similar)
+      return a.month.localeCompare(b.month);
+    });
+
+    // Chart 4 (Time Spent Trend): aggregate by date from new format
+    // New format: date, device_type, user_segment, total_sessions, avg_time_spent_sec
+    // Calculate weighted average time spent per segment (weighted by total_sessions)
+    const timeSpentTrendMap = new Map();
+    (timeSpentRows || []).forEach((row) => {
+      const date = String(row.date || "").trim();
+      if (!date) return;
+
+      const userSegment = String(row.user_segment ?? row["user_segment"] ?? "").trim();
+      const avgTimeSpent = toNumber(row.avg_time_spent_sec ?? row["avg_time_spent_sec"]);
+      const totalSessions = toNumber(row.total_sessions ?? row["total_sessions"]);
+
+      if (!timeSpentTrendMap.has(date)) {
+        timeSpentTrendMap.set(date, {
+          month: date,
+          engaged: { total: 0, sessions: 0 },
+          exposed: { total: 0, sessions: 0 },
+          notExposed: { total: 0, sessions: 0 },
+        });
+      }
+
+      const dateData = timeSpentTrendMap.get(date);
+      
+      // Match user_segment to the expected keys (case-insensitive)
+      if (userSegment.toLowerCase().includes("engaged") && !userSegment.toLowerCase().includes("exposed")) {
+        dateData.engaged.total += avgTimeSpent * totalSessions;
+        dateData.engaged.sessions += totalSessions;
+      } else if (userSegment.toLowerCase().includes("exposed")) {
+        dateData.exposed.total += avgTimeSpent * totalSessions;
+        dateData.exposed.sessions += totalSessions;
+      } else if (userSegment.toLowerCase().includes("not exposed") || userSegment.toLowerCase().includes("notexposed")) {
+        dateData.notExposed.total += avgTimeSpent * totalSessions;
+        dateData.notExposed.sessions += totalSessions;
+      }
+    });
+
+    const timeSpentTrend = Array.from(timeSpentTrendMap.values())
+      .map((item) => ({
+        month: item.month,
+        engaged: item.engaged.sessions > 0 ? Number((item.engaged.total / item.engaged.sessions).toFixed(2)) : 0,
+        exposed: item.exposed.sessions > 0 ? Number((item.exposed.total / item.exposed.sessions).toFixed(2)) : 0,
+        notExposed: item.notExposed.sessions > 0 ? Number((item.notExposed.total / item.notExposed.sessions).toFixed(2)) : 0,
+      }))
+      .sort((a, b) => {
+        // Sort by date (assuming format like DD-MM-YY or similar)
+        return a.month.localeCompare(b.month);
+      });
+
+    // Chart 5 (Device Distribution): aggregate by device_category from new format
+    // New format: date, device_category, status, user_count
+    // Aggregate across all dates and normalize device names
+    const deviceDistributionMap = new Map();
+    (deviceRows || []).forEach((row) => {
+      const deviceCategory = String(row.device_category ?? row["device_category"] ?? "").trim();
+      if (!deviceCategory) return;
+
+      // Normalize device names: Desktop/PC -> Desktop, Mobile/Tablet -> Mobile
+      let deviceName = deviceCategory;
+      if (deviceCategory.includes("Desktop") || deviceCategory.includes("PC")) {
+        deviceName = "Desktop";
+      } else if (deviceCategory.includes("Mobile") || deviceCategory.includes("Tablet")) {
+        deviceName = "Mobile";
+      }
+
+      const status = String(row.status ?? row["status"] ?? "").trim();
+      const userCount = toNumber(row.user_count ?? row["user_count"]);
+
+      if (!deviceDistributionMap.has(deviceName)) {
+        deviceDistributionMap.set(deviceName, {
+          device: deviceName,
+          engagedCount: 0,
+          exposedCount: 0,
+          notExposedCount: 0,
+        });
+      }
+
+      const deviceData = deviceDistributionMap.get(deviceName);
+      
+      // Match status to the expected keys (case-insensitive)
+      if (status.toLowerCase().includes("engaged") && !status.toLowerCase().includes("exposed")) {
+        deviceData.engagedCount += userCount;
+      } else if (status.toLowerCase().includes("exposed")) {
+        deviceData.exposedCount += userCount;
+      } else if (status.toLowerCase().includes("not exposed") || status.toLowerCase().includes("notexposed")) {
+        deviceData.notExposedCount += userCount;
+      }
+    });
+
+    const deviceDistribution = Array.from(deviceDistributionMap.values()).map((deviceData) => {
+      const pct = toPercentTriplet(deviceData.engagedCount, deviceData.exposedCount, deviceData.notExposedCount);
       return {
-        device: String(row.device || "").trim(),
+        device: deviceData.device,
         engaged: pct.engaged,
         exposed: pct.exposed,
         notExposed: pct.notExposed,
-        engagedCount,
-        exposedCount,
-        notExposedCount,
+        engagedCount: deviceData.engagedCount,
+        exposedCount: deviceData.exposedCount,
+        notExposedCount: deviceData.notExposedCount,
         total: pct.total,
       };
     });
 
-    // Chart 6 (Browser Distribution): existing UI expects percentages 0-100 for engaged/exposed/notExposed.
-    // CSV headers vary in casing; normalize them.
-    const browserDistribution = (browserRows || []).map((row) => {
-      const engagedCount = toNumber(row.engaged ?? row.Engaged);
-      const exposedCount = toNumber(row.exposed ?? row.Exposed);
-      const notExposedCount = toNumber(row.notExposed ?? row["notExposed"] ?? row["Not Exposed"]);
-      const pct = toPercentTriplet(engagedCount, exposedCount, notExposedCount);
+    // Chart 6 (Browser Distribution): aggregate by browser_category from new format
+    // New format: date, device_type, browser_category, engaged_users, exposed_users, not_exposed_users, total_users
+    // Aggregate across all dates and device types
+    const browserDistributionMap = new Map();
+    (browserRows || []).forEach((row) => {
+      const browserCategory = String(row.browser_category ?? row["browser_category"] ?? "").trim();
+      if (!browserCategory) return;
+
+      const engagedUsers = toNumber(row.engaged_users ?? row["engaged_users"]);
+      const exposedUsers = toNumber(row.exposed_users ?? row["exposed_users"]);
+      const notExposedUsers = toNumber(row.not_exposed_users ?? row["not_exposed_users"]);
+
+      if (!browserDistributionMap.has(browserCategory)) {
+        browserDistributionMap.set(browserCategory, {
+          browser: browserCategory,
+          engagedCount: 0,
+          exposedCount: 0,
+          notExposedCount: 0,
+        });
+      }
+
+      const browserData = browserDistributionMap.get(browserCategory);
+      browserData.engagedCount += engagedUsers;
+      browserData.exposedCount += exposedUsers;
+      browserData.notExposedCount += notExposedUsers;
+    });
+
+    const browserDistribution = Array.from(browserDistributionMap.values()).map((browserData) => {
+      const pct = toPercentTriplet(browserData.engagedCount, browserData.exposedCount, browserData.notExposedCount);
       return {
-        browser: String(row.browser || "").trim(),
+        browser: browserData.browser,
         engaged: pct.engaged,
         exposed: pct.exposed,
         notExposed: pct.notExposed,
-        engagedCount,
-        exposedCount,
-        notExposedCount,
+        engagedCount: browserData.engagedCount,
+        exposedCount: browserData.exposedCount,
+        notExposedCount: browserData.notExposedCount,
         total: pct.total,
       };
     });
