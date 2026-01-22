@@ -277,6 +277,7 @@ exports.getJourneyDashboard = async (req, res) => {
 
       const deviceData = deviceDistributionMap.get(deviceName);
       
+      console.log("status", status);
       // Match status to the expected keys (case-insensitive)
       if (status.toLowerCase().includes("engaged")) {
         deviceData.engagedCount += userCount;
