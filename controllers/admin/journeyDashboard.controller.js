@@ -140,7 +140,8 @@ exports.getJourneyDashboard = async (req, res) => {
     // Chart 2 (Engagement Trend): aggregate by month from new format
     // New format: date, category, device_category, total_users, not_exposed_users, exposed_users, engaged_users
     // segment1=Not Exposed (red), segment2=Engaged (dark blue), segment3=Exposed (light grey)
-    // Extract month from date (format: DD-MM-YY, e.g., "17-01-26" -> "01-2026", "27-12-25" -> "12-2025")
+    // Extract month from date
+    // Handles both formats: YYYY-MM-DD (e.g., "2025-12-20" -> "12-2025") and DD-MM-YY (e.g., "17-01-26" -> "01-2026")
     const extractMonth = (dateStr) => {
       if (!dateStr) return null;
       // Convert to string and trim, handle cases where it might be a number or other type
@@ -148,14 +149,21 @@ exports.getJourneyDashboard = async (req, res) => {
       if (!trimmed) return null;
       
       const parts = trimmed.split("-");
-      console.log("parts", parts);
-      // Format: DD-MM-YY (e.g., "17-01-26", "27-12-25")
       if (parts.length === 3) {
-        const month = String(parts[1]).padStart(2, "0");
-        const year = String(parts[2]);
-        // Convert 2-digit year to 4-digit (e.g., "26" -> "2026", "25" -> "2025")
-        const fullYear = year.length === 2 ? `20${year}` : year;
-        return `${month}-${fullYear}`;
+        // Check if first part is 4 digits (YYYY-MM-DD format)
+        if (String(parts[0]).length === 4) {
+          // Format: YYYY-MM-DD (e.g., "2025-12-20")
+          const year = String(parts[0]);
+          const month = String(parts[1]).padStart(2, "0");
+          return `${month}-${year}`;
+        } else {
+          // Format: DD-MM-YY (e.g., "17-01-26", "27-12-25")
+          const month = String(parts[1]).padStart(2, "0");
+          const year = String(parts[2]);
+          // Convert 2-digit year to 4-digit (e.g., "26" -> "2026", "25" -> "2025")
+          const fullYear = year.length === 2 ? `20${year}` : year;
+          return `${month}-${fullYear}`;
+        }
       }
       return null;
     };
