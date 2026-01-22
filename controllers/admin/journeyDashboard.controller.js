@@ -83,7 +83,7 @@ exports.getJourneyDashboard = async (req, res) => {
 
     const prefix = `${DEFAULT_PREFIX}/${window}`;
     const keys = {
-      overview: `${prefix}/chart_1_overview.csv`,
+      overview: `${prefix}/chart1_user_journey_performance.csv`,
       engagementTrend: `${prefix}/chart_2_engagement_trend.csv`,
       conversionTrend: `${prefix}/chart_3_conversion_trend.csv`,
       timeSpentTrend: `${prefix}/chart_4_time_spent_trend.csv`,
