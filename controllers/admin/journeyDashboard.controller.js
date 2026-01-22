@@ -5,6 +5,7 @@ const { s3Client } = require("../../config/s3Config");
 
 const DEFAULT_BUCKET = process.env.DASHBOARD_DATA_BUCKET || "mongodatamprompt";
 const DEFAULT_PREFIX = process.env.DASHBOARD_DATA_PREFIX || "dashboard_data/csv";
+const DEFAULT_PREFIX2 = "dashboard_data/kesari";
 
 const streamToString = async (stream) => {
   if (!stream) return "";
@@ -82,8 +83,9 @@ exports.getJourneyDashboard = async (req, res) => {
     const bucket = String(req.query.bucket || DEFAULT_BUCKET).trim() || DEFAULT_BUCKET;
 
     const prefix = `${DEFAULT_PREFIX}/${window}`;
+    const prefix2 = `${DEFAULT_PREFIX2}/${window}`;
     const keys = {
-      overview: `${prefix}/chart1_user_journey_performance.csv`,
+      overview: `${prefix2}/chart1_user_journey_performance.csv`,
       engagementTrend: `${prefix}/chart_2_engagement_trend.csv`,
       conversionTrend: `${prefix}/chart_3_conversion_trend.csv`,
       timeSpentTrend: `${prefix}/chart_4_time_spent_trend.csv`,
