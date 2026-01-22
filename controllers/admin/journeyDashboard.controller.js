@@ -137,10 +137,7 @@ exports.getJourneyDashboard = async (req, res) => {
       ],
     };
 
-    // Chart 2 (Engagement Trend): aggregate by month from new format
-    // New format: date, category, device_category, total_users, not_exposed_users, exposed_users, engaged_users
-    // segment1=Not Exposed (red), segment2=Engaged (dark blue), segment3=Exposed (light grey)
-    // Extract month from date
+    // Helper function to extract month from date (used by multiple charts)
     // Handles both formats: YYYY-MM-DD (e.g., "2025-12-20" -> "12-2025") and DD-MM-YY (e.g., "17-01-26" -> "01-2026")
     const extractMonth = (dateStr) => {
       if (!dateStr) return null;
@@ -203,26 +200,33 @@ exports.getJourneyDashboard = async (req, res) => {
       return a.month.localeCompare(b.month);
     });
 
-    // Chart 3 (Conversion Trend): aggregate by date from new format
+    // Chart 3 (Conversion Trend): aggregate by month from new format
     // New format: date, category, device_category, atc_not_exposed, atc_total_exposed, atc_engaged, ...
     // cart=Not Exposed ATC (red), purchase=Exposed ATC (light grey), impact=Engaged ATC (dark blue)
     const conversionTrendMap = new Map();
     (conversionRows || []).forEach((row) => {
-      const date = String(row.date || "").trim();
+      // Handle different possible field names for date
+      const date = String(row.date || row["date"] || "").trim();
       if (!date) return;
+
+      const monthKey = extractMonth(date);
+      if (!monthKey) {
+        console.warn(`Failed to extract month from date: ${date}`);
+        return;
+      }
 
       const atcNotExposed = toNumber(row.atc_not_exposed ?? row["atc_not_exposed"]);
       const atcExposed = toNumber(row.atc_total_exposed ?? row["atc_total_exposed"]);
       const atcEngaged = toNumber(row.atc_engaged ?? row["atc_engaged"]);
 
-      if (conversionTrendMap.has(date)) {
-        const existing = conversionTrendMap.get(date);
+      if (conversionTrendMap.has(monthKey)) {
+        const existing = conversionTrendMap.get(monthKey);
         existing.cart += atcNotExposed;
         existing.purchase += atcExposed;
         existing.impact += atcEngaged;
       } else {
-        conversionTrendMap.set(date, {
-          month: date,
+        conversionTrendMap.set(monthKey, {
+          month: monthKey,
           cart: atcNotExposed,
           purchase: atcExposed,
           impact: atcEngaged,
@@ -230,43 +234,50 @@ exports.getJourneyDashboard = async (req, res) => {
       }
     });
     const conversionTrend = Array.from(conversionTrendMap.values()).sort((a, b) => {
-      // Sort by date (assuming format like DD-MM-YY or similar)
+      // Sort by month (format: MM-YYYY)
       return a.month.localeCompare(b.month);
     });
 
-    // Chart 4 (Time Spent Trend): aggregate by date from new format
+    // Chart 4 (Time Spent Trend): aggregate by month from new format
     // New format: date, device_type, user_segment, total_sessions, avg_time_spent_sec
     // Calculate weighted average time spent per segment (weighted by total_sessions)
     const timeSpentTrendMap = new Map();
     (timeSpentRows || []).forEach((row) => {
-      const date = String(row.date || "").trim();
+      // Handle different possible field names for date
+      const date = String(row.date || row["date"] || "").trim();
       if (!date) return;
+
+      const monthKey = extractMonth(date);
+      if (!monthKey) {
+        console.warn(`Failed to extract month from date: ${date}`);
+        return;
+      }
 
       const userSegment = String(row.user_segment ?? row["user_segment"] ?? "").trim();
       const avgTimeSpent = toNumber(row.avg_time_spent_sec ?? row["avg_time_spent_sec"]);
       const totalSessions = toNumber(row.total_sessions ?? row["total_sessions"]);
 
-      if (!timeSpentTrendMap.has(date)) {
-        timeSpentTrendMap.set(date, {
-          month: date,
+      if (!timeSpentTrendMap.has(monthKey)) {
+        timeSpentTrendMap.set(monthKey, {
+          month: monthKey,
           engaged: { total: 0, sessions: 0 },
           exposed: { total: 0, sessions: 0 },
           notExposed: { total: 0, sessions: 0 },
         });
       }
 
-      const dateData = timeSpentTrendMap.get(date);
+      const monthData = timeSpentTrendMap.get(monthKey);
       
       // Match user_segment to the expected keys (case-insensitive)
       if (userSegment.toLowerCase().includes("engaged")) {
-        dateData.engaged.total += avgTimeSpent * totalSessions;
-        dateData.engaged.sessions += totalSessions;
+        monthData.engaged.total += avgTimeSpent * totalSessions;
+        monthData.engaged.sessions += totalSessions;
       } else if (userSegment.toLowerCase().includes("exposed") && !userSegment.toLowerCase().includes("not exposed")) {
-        dateData.exposed.total += avgTimeSpent * totalSessions;
-        dateData.exposed.sessions += totalSessions;
+        monthData.exposed.total += avgTimeSpent * totalSessions;
+        monthData.exposed.sessions += totalSessions;
       } else if (userSegment.toLowerCase().includes("not exposed")) {
-        dateData.notExposed.total += avgTimeSpent * totalSessions;
-        dateData.notExposed.sessions += totalSessions;
+        monthData.notExposed.total += avgTimeSpent * totalSessions;
+        monthData.notExposed.sessions += totalSessions;
       }
     });
 
@@ -278,7 +289,7 @@ exports.getJourneyDashboard = async (req, res) => {
         notExposed: item.notExposed.sessions > 0 ? Number((item.notExposed.total / item.notExposed.sessions).toFixed(2)) : 0,
       }))
       .sort((a, b) => {
-        // Sort by date (assuming format like DD-MM-YY or similar)
+        // Sort by month (format: MM-YYYY)
         return a.month.localeCompare(b.month);
       });
 
