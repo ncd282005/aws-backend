@@ -137,14 +137,36 @@ exports.getJourneyDashboard = async (req, res) => {
       ],
     };
 
-    // Chart 2 (Engagement Trend): map to existing keys { month, segment1, segment2, segment3 }
+    // Chart 2 (Engagement Trend): aggregate by date from new format
+    // New format: date, category, device_category, total_users, not_exposed_users, exposed_users, engaged_users
     // segment1=Not Exposed (red), segment2=Engaged (dark blue), segment3=Exposed (light grey)
-    const engagementTrend = (engagementRows || []).map((row) => ({
-      month: String(row.date || "").trim(),
-      segment1: toNumber(row["Not Exposed"]),
-      segment2: toNumber(row["Engaged"]),
-      segment3: toNumber(row["Exposed"]),
-    }));
+    const engagementTrendMap = new Map();
+    (engagementRows || []).forEach((row) => {
+      const date = String(row.date || "").trim();
+      if (!date) return;
+
+      const notExposed = toNumber(row.not_exposed_users ?? row["not_exposed_users"]);
+      const exposed = toNumber(row.exposed_users ?? row["exposed_users"]);
+      const engaged = toNumber(row.engaged_users ?? row["engaged_users"]);
+
+      if (engagementTrendMap.has(date)) {
+        const existing = engagementTrendMap.get(date);
+        existing.segment1 += notExposed;
+        existing.segment2 += engaged;
+        existing.segment3 += exposed;
+      } else {
+        engagementTrendMap.set(date, {
+          month: date,
+          segment1: notExposed,
+          segment2: engaged,
+          segment3: exposed,
+        });
+      }
+    });
+    const engagementTrend = Array.from(engagementTrendMap.values()).sort((a, b) => {
+      // Sort by date (assuming format like DD-MM-YY or similar)
+      return a.month.localeCompare(b.month);
+    });
 
     // Chart 3 (Conversion Trend): map to existing keys { month, cart, purchase, impact }
     // cart=Not Exposed ATC (red), purchase=Exposed ATC (light grey), impact=Engaged ATC (dark blue)
