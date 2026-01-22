@@ -223,13 +223,13 @@ exports.getJourneyDashboard = async (req, res) => {
       const dateData = timeSpentTrendMap.get(date);
       
       // Match user_segment to the expected keys (case-insensitive)
-      if (userSegment.toLowerCase().includes("engaged") && !userSegment.toLowerCase().includes("exposed")) {
+      if (userSegment.toLowerCase().includes("engaged")) {
         dateData.engaged.total += avgTimeSpent * totalSessions;
         dateData.engaged.sessions += totalSessions;
-      } else if (userSegment.toLowerCase().includes("exposed")) {
+      } else if (userSegment.toLowerCase().includes("exposed") && !userSegment.toLowerCase().includes("not exposed")) {
         dateData.exposed.total += avgTimeSpent * totalSessions;
         dateData.exposed.sessions += totalSessions;
-      } else if (userSegment.toLowerCase().includes("not exposed") || userSegment.toLowerCase().includes("notexposed")) {
+      } else if (userSegment.toLowerCase().includes("not exposed")) {
         dateData.notExposed.total += avgTimeSpent * totalSessions;
         dateData.notExposed.sessions += totalSessions;
       }
