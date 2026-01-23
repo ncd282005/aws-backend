@@ -1,4 +1,5 @@
 const Client = require("../../models/client.schema");
+const ClientConfig = require("../../models/clientConfig.schema");
 const {
   CreateBucketCommand,
   PutObjectCommand,
@@ -324,6 +325,38 @@ const createClient = async (req, res) => {
     });
 
     await newClient.save();
+
+    // Generate allowed origins from domain (with and without www)
+    let cleanDomain = domain.trim();
+    
+    // Remove protocol if present
+    cleanDomain = cleanDomain.replace(/^https?:\/\//i, "");
+    
+    // Remove trailing slash
+    cleanDomain = cleanDomain.replace(/\/$/, "");
+    
+    // Remove www. prefix to get base domain
+    const baseDomain = cleanDomain.replace(/^www\./i, "");
+    
+    // Create allowed origins array
+    const allowedOrigins = [
+      `https://${baseDomain}`,
+      `https://www.${baseDomain}`,
+    ];
+
+    // Create client configuration
+    const clientConfig = new ClientConfig({
+      clientId: newClient._id,
+      allowedOrigins: allowedOrigins,
+      s3Bucket: finalBucketName,
+      mongo: {
+        database: "analytics",
+        activityCollection: `${normalizedName}_activity_logs_v2`,
+        sessionCollection: `${normalizedName}_user_sessions`,
+      },
+    });
+
+    await clientConfig.save();
 
     // Generate pre-signed URL for logo if it exists
     let presignedLogoUrl = null;
