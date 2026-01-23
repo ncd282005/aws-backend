@@ -138,7 +138,9 @@ exports.getJourneyDashboard = async (req, res) => {
     };
 
     // Helper function to extract month from date (used by multiple charts)
-    // Handles both formats: YYYY-MM-DD (e.g., "2025-12-20" -> "12-2025") and DD-MM-YY (e.g., "17-01-26" -> "01-2026")
+    // Handles both formats: YYYY-MM-DD (e.g., "2025-12-20" -> "Dec-2025") and DD-MM-YY (e.g., "17-01-26" -> "Jan-2026")
+    const monthAbbreviations = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
     const extractMonth = (dateStr) => {
       if (!dateStr) return null;
       // Convert to string and trim, handle cases where it might be a number or other type
@@ -147,19 +149,25 @@ exports.getJourneyDashboard = async (req, res) => {
       
       const parts = trimmed.split("-");
       if (parts.length === 3) {
+        let monthNum, year;
+        
         // Check if first part is 4 digits (YYYY-MM-DD format)
         if (String(parts[0]).length === 4) {
           // Format: YYYY-MM-DD (e.g., "2025-12-20")
-          const year = String(parts[0]);
-          const month = String(parts[1]).padStart(2, "0");
-          return `${month}-${year}`;
+          year = String(parts[0]);
+          monthNum = parseInt(String(parts[1]), 10);
         } else {
           // Format: DD-MM-YY (e.g., "17-01-26", "27-12-25")
-          const month = String(parts[1]).padStart(2, "0");
-          const year = String(parts[2]);
+          monthNum = parseInt(String(parts[1]), 10);
+          const yearStr = String(parts[2]);
           // Convert 2-digit year to 4-digit (e.g., "26" -> "2026", "25" -> "2025")
-          const fullYear = year.length === 2 ? `20${year}` : year;
-          return `${month}-${fullYear}`;
+          year = yearStr.length === 2 ? `20${yearStr}` : yearStr;
+        }
+        
+        // Convert month number (1-12) to abbreviation (0-indexed array)
+        if (monthNum >= 1 && monthNum <= 12) {
+          const monthAbbr = monthAbbreviations[monthNum - 1];
+          return `${monthAbbr}-${year}`;
         }
       }
       return null;
