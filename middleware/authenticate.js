@@ -63,9 +63,14 @@ const authenticateToken = (type = "user") => {
           }
 
         } else {
-          const adminToken = await AdminToken.findOne({ adminId: entity._id })
+          // Check if this specific token exists for the admin
+          // This allows multiple tokens (multiple browser sessions) per admin
+          const adminToken = await AdminToken.findOne({ 
+            adminId: entity._id,
+            token: token 
+          });
 
-          if (adminToken.token != token) {
+          if (!adminToken) {
             return res.status(403).json({
               status: false,
               message: "Invalid token",

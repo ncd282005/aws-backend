@@ -25,20 +25,15 @@ exports.loginAdmin = async (req, res) => {
             return res.status(401).json({ message: "Invalid credentials." });
         }
 
-        let adminToken = await AdminToken.findOne({ adminId: admin._id });
+        // Generate a new token for each login session
+        // This allows multiple browsers/devices to be logged in simultaneously
+        const token = generateAdminAccessToken(admin);
 
-        let token;
-        if (!adminToken) {
-            token = generateAdminAccessToken(admin);
-
-            adminToken = new AdminToken({
-                adminId: admin._id,
-                token,
-            });
-            await adminToken.save();
-        } else {
-            token = adminToken.token;
-        }
+        const adminToken = new AdminToken({
+            adminId: admin._id,
+            token,
+        });
+        await adminToken.save();
 
         res.status(200).json({
             status: true,

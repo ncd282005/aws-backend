@@ -21,23 +21,19 @@ exports.logoutAdmin = async (req, res) => {
                 });
             }
 
-            const adminToken = await AdminToken.findOne({ adminId });
+            // Delete only the specific token being used
+            // This allows other browser sessions to remain active
+            const deletedToken = await AdminToken.findOneAndDelete({ 
+                adminId,
+                token 
+            });
 
-            if (!adminToken) {
+            if (!deletedToken) {
                 return res.status(404).json({
                     status: false,
                     message: "Admin token not found.",
                 });
             }
-
-            if (adminToken.token !== token) {
-                return res.status(403).json({
-                    status: false,
-                    message: "Token does not match the stored token for this admin.",
-                });
-            }
-
-            await AdminToken.findOneAndDelete({ adminId });
 
             res.status(200).json({
                 status: true,
