@@ -45,6 +45,7 @@ const {
   saveSyncState,
   completeSync,
   resetSyncState,
+  saveSyncStateV2,
 } = require("../../controllers/admin/syncState.controller");
 const {
   getThemeConfig,
@@ -124,5 +125,7 @@ router.get("/public/theme-config", getThemeConfig);
 router.get("/theme-config", authenticateToken("admin"), getThemeConfig);
 router.post("/theme-config", authenticateToken("admin"), saveThemeConfig);
 router.post("/theme-config/reset", authenticateToken("admin"), resetThemeConfig);
+
+router.post("/sync-state/v2", authenticateToken("admin"), saveSyncStateV2);
 
 module.exports = router;

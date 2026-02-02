@@ -1,4 +1,53 @@
 const SyncState = require("../../models/syncState.schema");
+const SyncStateV2 = require("../../models/syncStatev2.schema");
+
+exports.saveSyncStateV2 = async (req, res) => {
+  try {
+    const {
+      clientName,
+      currentStep,
+      status
+    } = req.body;
+
+    if (!clientName || typeof clientName !== "string") {
+      return res.status(400).json({
+        status: false,
+        message: "Client name is required",
+        data: null,
+      });
+    }
+
+    // Use upsert to create or update
+    const syncState = await SyncStateV2.findOneAndUpdate(
+      { clientName },
+      {
+        $set: {
+          ...(currentStep !== undefined && { currentStep }),
+          ...(status !== undefined && { status }),
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: "Sync state saved successfully",
+      data: syncState,
+    });
+  } catch (error) {
+    console.error("Error saving sync state v2:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Failed to save sync state v2",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      data: null,
+    });
+  }
+};
 
 /**
  * Get current sync state for a client
