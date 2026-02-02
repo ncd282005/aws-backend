@@ -4,7 +4,7 @@ const { GetObjectCommand } = require("@aws-sdk/client-s3");
 const { s3Client } = require("../../config/s3Config");
 
 const DEFAULT_BUCKET = "mongodatamprompt";
-const DEFAULT_PREFIX = "dashboard_data/kesari";
+const DEFAULT_PREFIX = "dashboard_data/kesari/dashboard1";
 
 const streamToString = async (stream) => {
   if (!stream) return "";
