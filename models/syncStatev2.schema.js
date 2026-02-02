@@ -9,16 +9,15 @@ const syncStateSchemaV2 = new mongoose.Schema(
       index: true,
     },
     currentStep: {
-      type: Number,
+      type: String,
       required: true,
-      min: 1,
-      max: 3,
-      default: 1,
+      enum: ["ETL_RUNNING", "ETL_COMPLETED", "ETL_FAILED", "PROCESS_RUNNING", "PROCESS_COMPLETED", "PROCESS_FAILED"],
+      default: "ETL_RUNNING",
     },
     status: {
       type: String,
-      enum: ["in_progress", "completed", "failed", "pending"],
-      default: "pending",
+      enum: ["ACTIVE", "COMPLETED", "FAILED"],
+      default: "ACTIVE",
     },
     // Last successful sync completion
     lastSyncDate: {
