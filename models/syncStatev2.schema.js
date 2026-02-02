@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const syncStateSchema = new mongoose.Schema(
+const syncStateSchemaV2 = new mongoose.Schema(
   {
     clientName: {
       type: String,
@@ -39,11 +39,11 @@ const syncStateSchema = new mongoose.Schema(
 );
 
 // Unique index on clientName - one sync state per client
-syncStateSchema.index({ clientName: 1 }, { unique: true });
+syncStateSchemaV2.index({ clientName: 1 }, { unique: true });
 
 module.exports = mongoose.model(
-  "SyncState",
-  syncStateSchema,
-  "sync_states"
+  "SyncStateV2",
+  syncStateSchemaV2,
+  "sync_states_v2"
 );
 
