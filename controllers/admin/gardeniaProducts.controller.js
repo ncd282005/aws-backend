@@ -86,12 +86,12 @@ const fetchUnprocessedProducts = async (clientName) => {
       });
     } while (continuationToken);
 
-    console.log(`Found ${csvFiles.length} unprocessed CSV files for client: ${clientName}`);
+    // console.log(`Found ${csvFiles.length} unprocessed CSV files for client: ${clientName}`);
 
     // Read and parse each CSV file
     for (const file of csvFiles) {
       try {
-        console.log(`Fetching unprocessed CSV: s3://${unprocessedBucket}/${file.key}`);
+        // console.log(`Fetching unprocessed CSV: s3://${unprocessedBucket}/${file.key}`);
 
         const getCommand = new GetObjectCommand({
           Bucket: unprocessedBucket,
@@ -136,7 +136,7 @@ const fetchUnprocessedProducts = async (clientName) => {
           }
         });
 
-        console.log(`Fetched ${csvRows.length} unprocessed products from ${file.key}`);
+        // console.log(`Fetched ${csvRows.length} unprocessed products from ${file.key}`);
       } catch (fileError) {
         console.error(`Error reading unprocessed CSV file ${file.key}:`, fileError);
         errors.push({
@@ -202,7 +202,7 @@ exports.getGardeniaProducts = async (req, res) => {
       });
     } while (continuationToken);
 
-    console.log("jsonlFiles", jsonlFiles);
+    // console.log("jsonlFiles", jsonlFiles);
 
     // Read and parse all JSONL files (processed products)
     const processedProducts = [];
@@ -270,7 +270,7 @@ exports.getGardeniaProducts = async (req, res) => {
     // Combine processed and unprocessed products
     const allProducts = [...processedProducts, ...unprocessedProducts];
 
-    console.log(`Total products: ${allProducts.length} (${processedProducts.length} processed, ${unprocessedProducts.length} unprocessed)`);
+    // console.log(`Total products: ${allProducts.length} (${processedProducts.length} processed, ${unprocessedProducts.length} unprocessed)`);
 
     return res.status(200).json({
       status: true,

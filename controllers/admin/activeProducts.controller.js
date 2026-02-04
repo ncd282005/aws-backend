@@ -65,17 +65,17 @@ exports.getActiveProducts = async (req, res) => {
       });
     }
 
-    console.log(`Fetching active products for index: ${index}`);
+    // console.log(`Fetching active products for index: ${index}`);
 
     // Run the script
     let scriptResult;
     try {
-      console.log("Running activeproduct.sh...");
+      // console.log("Running activeproduct.sh...");
       scriptResult = await runActiveProductScript(index);
-      console.log("activeproduct.sh completed successfully");
-      console.log("activeproduct.sh stdout:", scriptResult.stdout);
+      // console.log("activeproduct.sh completed successfully");
+      // console.log("activeproduct.sh stdout:", scriptResult.stdout);
       if (scriptResult.stderr) {
-        console.log("activeproduct.sh stderr:", scriptResult.stderr);
+        // console.log("activeproduct.sh stderr:", scriptResult.stderr);
       }
     } catch (error) {
       console.error("activeproduct.sh failed:", error);
@@ -93,7 +93,7 @@ exports.getActiveProducts = async (req, res) => {
     let activeProductIds;
     try {
       activeProductIds = await readActiveProductIdsFromFile(index);
-      console.log(`Found ${activeProductIds.length} active products`);
+      // console.log(`Found ${activeProductIds.length} active products`);
     } catch (error) {
       console.error("Error reading product IDs from file:", error);
       return res.status(500).json({
