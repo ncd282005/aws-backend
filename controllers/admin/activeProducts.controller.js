@@ -13,7 +13,7 @@ const execAsync = promisify(exec);
 const runActiveProductScript = async (index) => {
   const scriptPath = "/var/www/html/qgen/activeproduct.sh";
   const command = `./activeproduct.sh "${index}"`;
-  console.log("Running activeproduct.sh command:", command);
+  // console.log("Running activeproduct.sh command:", command);
   
   // Change to the script directory before executing
   const scriptDir = "/var/www/html/qgen";
