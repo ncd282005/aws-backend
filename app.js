@@ -1,4 +1,4 @@
-const https = require('https');
+//const https = require('https');
 const fs = require('fs');
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -13,6 +13,9 @@ const analyticsRoutes = require("./routes/v1/analyticsRoutes");
 const trackLogRoutes = require("./routes/v1/trackLogRoutes");
 const webhookShopifyRoutes = require("./routes/v1/webhook/shopifyRoutes");
 require("dotenv").config();
+
+connectDB();
+
 
 const cron = require("node-cron");
 const { clientCrone } = require("./controllers/demo/clientCrone.controller");

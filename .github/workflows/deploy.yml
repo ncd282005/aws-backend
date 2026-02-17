@@ -19,9 +19,4 @@ jobs:
           host: ${{ secrets.AWS_HOST }}
           username: ${{ secrets.AWS_USERNAME }}
           key: ${{ secrets.AWS_SSH_KEY }}
-          script: |
-            cd /var/www/html/project/aws-backend
-            git pull origin main
-            npm install
-            pm2 restart backend
 
