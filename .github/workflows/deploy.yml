@@ -17,7 +17,7 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.AWS_HOST }}
-          username: ubuntu
+          username: ${{ secrets.AWS_USERNAME }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
             cd /var/www/backend-repo
