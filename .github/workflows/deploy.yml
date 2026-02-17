@@ -19,4 +19,5 @@ jobs:
           host: ${{ secrets.AWS_HOST }}
           username: ${{ secrets.AWS_USERNAME }}
           key: ${{ secrets.AWS_SSH_KEY }}
+          taret: ${{ secrets. AWS_TARGET_DIR }}
 
