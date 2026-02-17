@@ -14,14 +14,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build TypeScript
-        run: npm run build
-
       - name: Create deployment package (without node_modules)
         run: |
           mkdir -p deploy
