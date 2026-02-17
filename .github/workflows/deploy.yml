@@ -1,4 +1,4 @@
-name: Deploy to AWS
+name: PHP CI/CD
 
 on:
   push:
@@ -10,14 +10,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.AWS_HOST }}
-          username: ubuntu
-          key: ${{ secrets.AWS_SSH_KEY }}
-          script: |
-            cd /var/www/aws-backend
-            git pull origin main
-            composer install
-            sudo systemctl restart nginx
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3'
+
+    - name: Install dependencies
+      run: composer install --no-dev --optimize-autoloader
+
+    - name: Copy to server via SSH
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_KEY }}
+        port: 22
+        script: |
+          cd /var/www/html/mybackend/aws-backend
+          git pull origin main
+          composer install --no-dev --optimize-autoloader
+          sudo systemctl restart php8.2-fpm
+          sudo systemctl restart nginx
