@@ -1,28 +1,21 @@
-FROM php:8.3-fpm
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    git curl zip unzip libzip-dev \
-    nginx \
-    && docker-php-ext-install zip
+FROM node:16
 
-# Install MongoDB extension
-RUN pecl install mongodb \
-    && docker-php-ext-enable mongodb
+# Create app directory
+WORKDIR /usr/src/app
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Install app dependencies
+# A wildcard is used to ensure both package.json AND package-lock.json are copied
+# where available (npm@5+)
+COPY package*.json ./
 
-WORKDIR /var/www/html
+RUN npm install
+# If you are building your code for production
+# RUN npm ci --only=production
 
+# Bundle app source
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader
-
-# Nginx config
-COPY docker/nginx.conf /etc/nginx/nginx.conf
-
-EXPOSE 80
-
-CMD service nginx start && php-fpm
+EXPOSE 8080
+CMD [ "node", "server.js" ]
 
