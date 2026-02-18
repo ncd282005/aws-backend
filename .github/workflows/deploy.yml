@@ -31,7 +31,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.AWS_HOST }}
-          username: ${{ secrets.AWS_USER }}
+          username: ${{ secrets.AWS_USERNAME }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
             docker stop backend || true
