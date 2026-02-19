@@ -1,5 +1,5 @@
 {
-  "name": "node-api",
+  "name": "api",
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
@@ -44,5 +44,14 @@
     "eslint": "^4.1.1",
     "globals": "15.8.0",
     "nodemon": "^1.0.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ncd282005/aws-backend.git"
+  },
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ncd282005/aws-backend/issues"
+  },
+  "homepage": "https://github.com/ncd282005/aws-backend#readme"
 }
