@@ -48,6 +48,14 @@ app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/track", trackLogRoutes);
 app.use("/api/v1/webhook/shopify", webhookShopifyRoutes);
 
+// ✅ Health check route (Very important for Docker / CI/CD)
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "API is running 🚀"
+  });
+});
+
 cron.schedule("0 * * * *", async () => {
   await clientCrone();
 });
