@@ -41,7 +41,7 @@ jobs:
             docker run -d \
               --name backend \
               -p 3000:3000 \
-              --env-file //vat/www/html/aws-backend/.env \
+              --env-file /vat/www/html/aws-backend/.env \
               --restart always \
               ${{ secrets.DOCKER_USERNAME }}/aws-backend:latest
             docker image prune -f
