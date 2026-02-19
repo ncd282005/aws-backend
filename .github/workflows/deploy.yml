@@ -34,12 +34,13 @@ jobs:
           username: ${{ secrets.AWS_USERNAME }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
             docker stop backend || true
             docker rm backend || true
+            docker rmi ${{ secrets.DOCKER_USERNAME }}/aws-backend:latest || true
             docker pull ${{ secrets.DOCKER_USERNAME }}/aws-backend:latest
             docker run -d \
               --name backend \
               -p 3000:3000 \
               --restart always \
               ${{ secrets.DOCKER_USERNAME }}/aws-backend:latest
+            docker image prune -f
