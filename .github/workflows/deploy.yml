@@ -16,7 +16,7 @@ jobs:
 
       - name: Read Latest Version
         run: |
-           VERSION=$(tail -n 1 VERSIONS | tr -d '[:space:]')
+           VERSION=$(tail -n 2 VERSIONS | tr -d '[:space:]')
            echo "IMAGE_TAG=$VERSION" >> $GITHUB_ENV
 
       - name: Login to Docker Hub
@@ -48,7 +48,7 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/aws-backend:${{ env.IMAGE_TAG }}
             docker run -d \
               --name backend \
-              -p 3000:3000 \
+              -p 3001:3000 \
               --env-file /var/www/html/aws-backend/.env \
               --restart always \
               ${{ secrets.DOCKER_USERNAME }}/aws-backend:${{ env.IMAGE_TAG }}
