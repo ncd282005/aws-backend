@@ -52,7 +52,7 @@ app.use("/api/v1/webhook/shopify", webhookShopifyRoutes);
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: " API IS RUNNING !!!"
+    message: " API IS RUNNING @@"
   });
 });
 
