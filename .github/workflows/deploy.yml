@@ -14,10 +14,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set Docker Image Tag
-        run: |
-          
-              echo "IMAGE_TAG=$(cat VERSIONS)" >> $GITHUB_ENV
+      -  name: Read Version
+         run: |
+                VERSION=$(cat VERSION)
+                echo "IMAGE_TAG=$VERSION" >> $GITHUB_ENV
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
