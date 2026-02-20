@@ -16,7 +16,7 @@ jobs:
 
       - name: Read Latest Version
         run: |
-           VERSION=$(tail -n 2 VERSIONS | tr -d '[:space:]')
+           VERSION=$(tail -n 3 VERSIONS | tr -d '[:space:]')
            echo "IMAGE_TAG=$VERSION" >> $GITHUB_ENV
 
       - name: Login to Docker Hub
