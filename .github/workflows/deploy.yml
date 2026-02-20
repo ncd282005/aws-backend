@@ -4,7 +4,7 @@ on:
   push: 
    branches:
      - main
-   tag:
+   tags:
      - 'v*.*.*' #TRIGGER ON IMANES TAG PUSH 
        
 jobs:
