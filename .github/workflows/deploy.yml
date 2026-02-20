@@ -48,7 +48,7 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/aws-backend:${{ env.IMAGE_TAG }}
             docker run -d \
               --name backend \
-              -p 3001:3000 \
+              -p 3000:3000 \
               --env-file /var/www/html/aws-backend/.env \
               --restart always \
               ${{ secrets.DOCKER_USERNAME }}/aws-backend:${{ env.IMAGE_TAG }}
