@@ -13,6 +13,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # Set Docker Image Tag based on git commit SHA
+      - name: Set Docker Image Tag
+        run: echo "IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -21,10 +25,13 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/aws-backend:latest .
+          docker build \
+            -t ${{ secrets.DOCKER_USERNAME }}/aws-backend:${{ env.IMAGE_TAG }} \
+            -t ${{ secrets.DOCKER_USERNAME }}/aws-backend:latest .
 
-      - name: Push Image
+      - name: Push Docker Image
         run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/aws-backend:${{ env.IMAGE_TAG }}
           docker push ${{ secrets.DOCKER_USERNAME }}/aws-backend:latest
 
       - name: Deploy to EC2
@@ -34,14 +41,23 @@ jobs:
           username: ${{ secrets.AWS_USERNAME }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
+            # Stop and remove old container
             docker stop backend || true
             docker rm backend || true
+
+            # Remove old image (optional)
             docker rmi ${{ secrets.DOCKER_USERNAME }}/aws-backend:latest || true
-            docker pull ${{ secrets.DOCKER_USERNAME }}/aws-backend:latest
+
+            # Pull new versioned image
+            docker pull ${{ secrets.DOCKER_USERNAME }}/aws-backend:${{ env.IMAGE_TAG }}
+
+            # Run container with versioned image
             docker run -d \
               --name backend \
               -p 3000:3000 \
               --env-file /var/www/html/aws-backend/.env \
               --restart always \
-              ${{ secrets.DOCKER_USERNAME }}/aws-backend:latest
+              ${{ secrets.DOCKER_USERNAME }}/aws-backend:${{ env.IMAGE_TAG }}
+
+            # Clean up unused images
             docker image prune -f
