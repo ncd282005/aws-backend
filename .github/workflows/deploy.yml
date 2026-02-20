@@ -15,7 +15,7 @@ jobs:
 
       # Set Docker Image Tag based on git commit SHA
       - name: Set Docker Image Tag
-        run: echo "IMAGE_TAG=${GITHUB_REF#refs/tags/} >> $GITHUB_ENV
+        run: echo "IMAGE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
         
 
       - name: Login to Docker H54.163.18.220ub
